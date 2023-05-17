@@ -9,8 +9,8 @@ from diagrams.onprem.iac import Atlantis, Terraform
 
 graph_attr = {
     "fontsize": "20",
-    # "bgcolor": "transparent"
-    "bgcolor": "white",
+    "bgcolor": "transparent"
+    # "bgcolor": "white",
 }
 
 with Diagram(
@@ -32,12 +32,11 @@ with Diagram(
         cloudtrail_logs = Cloudtrail("cloudtrail_logs")
         cloudwatch_events = CloudwatchEventEventBased("cloudwatch_iam_events")
 
-        iam_policy_lambda = Lambda("iam_policy")
-        resource_policy_lambda = Lambda("resource_policy")
+        store_iam_policy_lambda = Lambda("store_iam_policy")
+        maintain_iam_policy_lambda = Lambda("maintain_iam_policy")
 
         resource_bucket = S3("policy_store")
         iam_permissions = IAMPermissions("iam_permissions")
-        resource_permissions = IAMPermissions("resource_permissions")
 
     # IaC
     terraform_resources >> ci_cd
@@ -48,9 +47,13 @@ with Diagram(
     ci_cd >> iam_creds
 
     # Cloudtrail events
-    cloudtrail_logs >> cloudwatch_events >> iam_policy_lambda >> resource_bucket
-    cloudtrail_logs >> cloudwatch_events >> resource_policy_lambda >> resource_bucket
+    cloudtrail_logs >> cloudwatch_events >> store_iam_policy_lambda >> resource_bucket
+    (
+        cloudtrail_logs
+        >> cloudwatch_events
+        >> maintain_iam_policy_lambda
+        >> resource_bucket
+    )
 
     # Lambda functions
-    iam_policy_lambda >> iam_permissions
-    resource_policy_lambda >> resource_permissions
+    maintain_iam_policy_lambda >> iam_permissions
