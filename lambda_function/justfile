@@ -1,0 +1,29 @@
+run:
+  cargo run
+
+install:
+  cargo install --path .
+
+build:
+  cargo build --release
+
+fmt:
+  cargo fmt --all
+
+# everyone's favorite animate paper clip
+clippy:
+  cargo clippy --all --all-targets --all-features
+
+filter PATTERN:
+  cargo test {{PATTERN}}
+
+watch PATTERN:
+  cargo watch -C src -w . -- cargo test {{PATTERN}}
+
+test:
+  cargo test --all
+
+ci:
+  cargo test --all
+  cargo clippy --all --all-targets
+  cargo fmt --all -- --check
