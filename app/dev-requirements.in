@@ -1,0 +1,7 @@
+-c requirements.in
+pip-tools
+diagrams
+pytest
+pre-commit
+boto3
+moto[all]

@@ -7,7 +7,6 @@ from diagrams.aws.security import IAMPermissions
 from diagrams.aws.security import IdentityAndAccessManagementIam
 from diagrams.onprem.iac import Atlantis, Terraform
 from diagrams.aws.security import SecretsManager
-import json
 
 graph_attr = {
     "fontsize": "20",
@@ -32,10 +31,11 @@ with Diagram(
 
     with Cluster("AWS"):
         cloudtrail_logs = Cloudtrail("cloudtrail_logs")
-        cloudwatch_events = CloudwatchEventEventBased("cloudwatch")
+        cloudwatch_events = CloudwatchEventEventBased("iam_events")
+        cloudwatch_cron = CloudwatchEventEventBased("cron_job")
 
-        store_iam_policy_lambda = Lambda("store_lambda")
-        maintain_iam_policy_lambda = Lambda("maintain_lambda")
+        handle_policy_event_lambda = Lambda("event_handler")
+        snapshot_cron_lambda = Lambda("policy_snapshot")
 
         secret_manager = SecretsManager("secret_manager")
 
@@ -51,17 +51,13 @@ with Diagram(
     ci_cd >> iam_creds
 
     # Cloudtrail events
-    cloudtrail_logs >> cloudwatch_events >> store_iam_policy_lambda >> resource_bucket
-    (
-        cloudtrail_logs
-        >> cloudwatch_events
-        >> maintain_iam_policy_lambda
-        >> resource_bucket
-    )
+    cloudtrail_logs >> cloudwatch_events >> handle_policy_event_lambda >> resource_bucket
+
+    # Cloudwatch cron
+    cloudwatch_cron >> snapshot_cron_lambda >> resource_bucket
 
     # Lambda functions
-    maintain_iam_policy_lambda >> iam_permissions
+    handle_policy_event_lambda >> iam_permissions
 
     # Secrets manager
-    secret_manager >> maintain_iam_policy_lambda
-    secret_manager >> store_iam_policy_lambda
+    secret_manager >> handle_policy_event_lambda
