@@ -1,12 +1,14 @@
 from diagrams import Cluster, Diagram
 from diagrams.aws.compute import Lambda
+from diagrams.aws.management import Cloudtrail, CloudwatchEventEventBased
+from diagrams.aws.security import (
+    IAMPermissions,
+    IdentityAndAccessManagementIam,
+    SecretsManager,
+)
 from diagrams.aws.storage import S3
-from diagrams.aws.management import CloudwatchEventEventBased, Cloudtrail
-from diagrams.onprem.ci import Jenkins, GithubActions, TravisCI
-from diagrams.aws.security import IAMPermissions
-from diagrams.aws.security import IdentityAndAccessManagementIam
+from diagrams.onprem.ci import GithubActions, Jenkins, TravisCI
 from diagrams.onprem.iac import Atlantis, Terraform
-from diagrams.aws.security import SecretsManager
 
 graph_attr = {
     "fontsize": "20",
@@ -51,7 +53,12 @@ with Diagram(
     ci_cd >> iam_creds
 
     # Cloudtrail events
-    cloudtrail_logs >> cloudwatch_events >> handle_policy_event_lambda >> resource_bucket
+    (
+        cloudtrail_logs
+        >> cloudwatch_events
+        >> handle_policy_event_lambda
+        >> resource_bucket
+    )
 
     # Cloudwatch cron
     cloudwatch_cron >> snapshot_cron_lambda >> resource_bucket

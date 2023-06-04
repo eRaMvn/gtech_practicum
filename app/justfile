@@ -1,0 +1,8 @@
+fmt:
+  pre-commit run --all-files
+
+filter PATTERN:
+  pytest app/tests/{{PATTERN}}
+
+test:
+  pytest app/tests

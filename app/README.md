@@ -1,10 +1,25 @@
+# IAM Keeper
 
-------------------Need to store state file as locking mechanism for each role
+IAM Keeper is to revert the state of IAM User and Role to the baseline if non-designated credentials make changes
 
-S3
+## S3 bucket structure
 
-Role_name/inline
+- role
+  - role_name
+    - inline_policy
+      - policy_1.json
+      - policy_2.json
+    - managed_policies/list.txt
+    - state.txt
 
-User_name
+- user
+  - user_name
+    - inline_policy
+      - policy_1.json
+      - policy_2.json
+    - managed_policies/list.txt
+    - state.txt
 
-Managed_policy/
+- managed_policies
+  - policy_1.json
+  - policy_2.json

@@ -1,0 +1,2 @@
+WHITELISTED_IAM_USERS = "thor|odin"
+WHITELISTED_IAM_ROLES = "thor|odin"
