@@ -23,3 +23,8 @@ IAM Keeper is to revert the state of IAM User and Role to the baseline if non-de
 - managed_policies
   - policy_1.json
   - policy_2.json
+
+## Update for the week
+
+- Add log events
+- Develop function

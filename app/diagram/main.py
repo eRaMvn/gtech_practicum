@@ -45,26 +45,26 @@ with Diagram(
         iam_permissions = IAMPermissions("iam_permissions")
 
     # IaC
-    terraform_resources >> ci_cd
-    atlantis >> ci_cd
+    terraform_resources >> ci_cd  # type: ignore
+    atlantis >> ci_cd  # type: ignore
 
     # CI/CD
-    iam_creds >> resource_bucket
-    ci_cd >> iam_creds
+    iam_creds >> resource_bucket  # type: ignore
+    ci_cd >> iam_creds  # type: ignore
 
     # Cloudtrail events
     (
-        cloudtrail_logs
+        cloudtrail_logs  # type: ignore
         >> cloudwatch_events
         >> handle_policy_event_lambda
         >> resource_bucket
     )
 
     # Cloudwatch cron
-    cloudwatch_cron >> snapshot_cron_lambda >> resource_bucket
+    cloudwatch_cron >> snapshot_cron_lambda >> resource_bucket  # type: ignore
 
     # Lambda functions
-    handle_policy_event_lambda >> iam_permissions
+    handle_policy_event_lambda >> iam_permissions  # type: ignore
 
     # Secrets manager
-    secret_manager >> handle_policy_event_lambda
+    secret_manager >> handle_policy_event_lambda  # type: ignore
