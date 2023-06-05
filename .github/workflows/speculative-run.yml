@@ -6,7 +6,7 @@ on:
     branches:
       - main
     paths:
-      - infra/**.tf
+      - src/**.tf
 
 ## Add shared Environment Variables across jobs here ##
 env:
