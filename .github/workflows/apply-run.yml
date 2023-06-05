@@ -1,0 +1,53 @@
+---
+name: Terraform Cloud Apply Run
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - infra/**.tf
+
+## RECOMMENDED: Limit apply runs job / workflow to a single concurrency group at a time.
+## link: https://docs.github.com/en/actions/using-jobs/using-concurrency
+## Example:
+# concurrency: production
+
+## Add shared Environment Variables across jobs here ##
+env:
+  TF_CLOUD_ORGANIZATION: "${{ vars.TF_CLOUD_ORGANIZATION }}"
+  TF_API_TOKEN: "${{ secrets.TF_API_TOKEN }}"
+  TF_WORKSPACE: "${{ vars.TF_WORKSPACE }}"
+  CONFIG_DIRECTORY: "./src"
+  ## Additional env variables
+  # TF_LOG: DEBUG ## Helpful for troubleshooting
+  # TF_MAX_TIMEOUT: "30m" ## If you wish to override the default "1h"
+
+jobs:
+  terraform-cloud-apply-run:
+    runs-on: ubuntu-latest
+    ## OPTIONAL: can scope variables to this specific job
+    ## Example:
+    # env:
+    #  TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORG }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: hashicorp/tfc-workflows-github/actions/upload-configuration@v1.0.0
+        id: upload
+        with:
+          workspace: ${{ env.TF_WORKSPACE }}
+          directory: ${{ env.CONFIG_DIRECTORY }}
+
+      - uses: hashicorp/tfc-workflows-github/actions/create-run@v1.0.0
+        id: create-run
+        with:
+          workspace: ${{ env.TF_WORKSPACE }}
+          configuration_version: ${{ steps.upload.outputs.configuration_version_id }}
+
+      - uses: hashicorp/tfc-workflows-github/actions/apply-run@v1.0.0
+        id: apply
+        if: ${{ fromJSON(steps.create-run.outputs.payload).data.attributes.actions.IsConfirmable }}
+        with:
+          run: ${{ steps.create-run.outputs.run_id }}
+          comment: "Apply Run from GitHub Actions CI ${{ github.sha }}"
