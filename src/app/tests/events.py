@@ -1,3 +1,63 @@
+CREATE_ROLE_EVENT = {
+    "version": "0",
+    "id": "cd3886ff-3e2e-0fc4-7a0c-33af2bab057a",
+    "detail-type": "AWS API Call via CloudTrail",
+    "source": "aws.iam",
+    "account": "01234567890",
+    "time": "2023-06-04T06:52:01Z",
+    "region": "us-east-1",
+    "resources": [],
+    "detail": {
+        "eventVersion": "1.08",
+        "userIdentity": {
+            "type": "IAMUser",
+            "principalId": "AIDAJ24KHYAI5C3A47F6W",
+            "arn": "arn:aws:iam::01234567890:user/john.doe",
+            "accountId": "01234567890",
+            "accessKeyId": "ASIAQG44ZLVNNNSKLD6I",
+            "userName": "john.doe",
+            "sessionContext": {
+                "sessionIssuer": {},
+                "webIdFederationData": {},
+                "attributes": {
+                    "creationDate": "2023-06-04T06:51:21Z",
+                    "mfaAuthenticated": "true",
+                },
+            },
+        },
+        "eventTime": "2023-06-04T06:52:01Z",
+        "eventSource": "iam.amazonaws.com",
+        "eventName": "CreateRole",
+        "awsRegion": "us-east-1",
+        "sourceIPAddress": "68.21.163.122",
+        "userAgent": "AWS Internal",
+        "requestParameters": {
+            "roleName": "thor",
+            "description": "",
+            "assumeRolePolicyDocument": '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"sts:AssumeRole","Principal":{"AWS":"01234567890"},"Condition":{}}]}',
+        },
+        "responseElements": {
+            "role": {
+                "assumeRolePolicyDocument": "%7B%22Version%22%3A%222012-10-17%22%2C%22Statement%22%3A%5B%7B%22Effect%22%3A%22Allow%22%2C%22Action%22%3A%22sts%3AAssumeRole%22%2C%22Principal%22%3A%7B%22AWS%22%3A%22014824332634%22%7D%2C%22Condition%22%3A%7B%7D%7D%5D%7D",
+                "arn": "arn:aws:iam::01234567890:role/thor",
+                "roleId": "AROAQG44ZLVNG6B3W3FLY",
+                "createDate": "Jun 4, 2023 6:52:01 AM",
+                "roleName": "thor",
+                "path": "/",
+            }
+        },
+        "requestID": "7621a169-ff76-4094-b2d8-d3229d89b181",
+        "eventID": "883f7e30-b43b-415f-9de3-3931724b8239",
+        "readOnly": False,
+        "eventType": "AwsApiCall",
+        "managementEvent": True,
+        "recipientAccountId": "01234567890",
+        "eventCategory": "Management",
+        "sessionCredentialFromConsole": "true",
+    },
+}
+
+
 EVENT_FROM_ASSUME_ROLE = {
     "version": "0",
     "id": "95875e19-da17-6cf8-e875-3ddfb63847b5",

@@ -1,3 +1,7 @@
 {
-    "exclude": [ ".venv" ],"venvPath": "./app", "venv": ".venv"
+  "exclude": [
+    ".venv"
+  ],
+  "venvPath": "./src/app",
+  "venv": ".venv"
 }
