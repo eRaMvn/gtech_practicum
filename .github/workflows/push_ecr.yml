@@ -1,0 +1,35 @@
+---
+name: Build and push ECR image
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - src/app/*
+
+jobs:
+  build_and_push_ecr:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::014824332634:role/gh_action_iam_keeper_ecr
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build, tag, and push iam_event_handler image to Amazon ECR
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY: ${{ vars.ECR_IAM_HANDLER_REPO }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG -f src/app/iam_event_handler .
+          docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG

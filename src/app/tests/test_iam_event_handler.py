@@ -14,8 +14,20 @@ from app.iam_event_handler.utils import (
 )
 
 from .constants import TEST_ROLE_NAME
-from .events import ATTACH_ROLE_POLICY_EVENT, CREATE_ROLE_EVENT, EVENT_FROM_ASSUME_ROLE
-from .utils import create_role_with_managed_policies
+from .events import (
+    ATTACH_ROLE_POLICY_EVENT,
+    CREATE_POLICY_VERSION_EVENT,
+    CREATE_ROLE_EVENT,
+    DETACH_ROLE_POLICY_EVENT,
+    EVENT_FROM_ASSUME_ROLE,
+)
+from .utils import (
+    create_iam_role,
+    create_managed_policy,
+    create_role_with_managed_policies,
+    get_current_managed_policy,
+    updated_managed_policy,
+)
 
 
 def test_extract_principal():
@@ -62,7 +74,7 @@ def test_create_role_with_managed_policy_remediation():
     updated_event["detail"]["requestParameters"]["roleName"] = TEST_ROLE_NAME
     iam_client = boto3.client("iam")
 
-    create_role_with_managed_policies()
+    create_role_with_managed_policies(iam_client)
     managed_policy_arns = get_managed_policies_for_role(TEST_ROLE_NAME, iam_client)
     assert len(managed_policy_arns) == 2
 
@@ -70,3 +82,60 @@ def test_create_role_with_managed_policy_remediation():
     roles_response = iam_client.list_roles()
     roles = roles_response["Roles"]
     assert len(roles) == 0
+
+
+@mock_iam
+def test_update_role_by_adding_attach_managed_policy_remediation():
+    updated_event = ATTACH_ROLE_POLICY_EVENT
+
+    test_policy = "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"
+    updated_event["detail"]["requestParameters"]["roleName"] = TEST_ROLE_NAME
+    updated_event["detail"]["requestParameters"]["policyArn"] = test_policy
+    iam_client = boto3.client("iam")
+
+    create_iam_role(iam_client)
+    iam_client.attach_role_policy(RoleName=TEST_ROLE_NAME, PolicyArn=test_policy)
+    managed_policy_arns = get_managed_policies_for_role(TEST_ROLE_NAME, iam_client)
+    assert len(managed_policy_arns) == 1
+
+    remediate(updated_event)
+    managed_policy_arns = get_managed_policies_for_role(TEST_ROLE_NAME, iam_client)
+    assert len(managed_policy_arns) == 0
+
+
+@mock_iam
+def test_update_role_by_detaching_managed_policy_remediation():
+    updated_event = DETACH_ROLE_POLICY_EVENT
+    test_policy = "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"
+    updated_event["detail"]["requestParameters"]["roleName"] = TEST_ROLE_NAME
+    updated_event["detail"]["requestParameters"]["policyArn"] = test_policy
+
+    iam_client = boto3.client("iam")
+
+    create_role_with_managed_policies(iam_client)
+    managed_policy_arns = get_managed_policies_for_role(TEST_ROLE_NAME, iam_client)
+    assert len(managed_policy_arns) == 2
+
+    remediate(updated_event)
+    managed_policy_arns = get_managed_policies_for_role(TEST_ROLE_NAME, iam_client)
+    assert len(managed_policy_arns) == 3
+
+
+@mock_iam
+def test_update_managed_policy_assigned_to_a_role_remediation():
+    updated_event = CREATE_POLICY_VERSION_EVENT
+    iam_client = boto3.client("iam")
+    test_policy_arn = create_managed_policy(iam_client)
+    updated_event["detail"]["requestParameters"]["roleName"] = TEST_ROLE_NAME
+    updated_event["detail"]["requestParameters"]["policyArn"] = test_policy_arn
+
+    create_iam_role(iam_client)
+    iam_client.attach_role_policy(RoleName=TEST_ROLE_NAME, PolicyArn=test_policy_arn)
+
+    updated_managed_policy(iam_client, test_policy_arn)
+    current_managed_policy = get_current_managed_policy(iam_client, test_policy_arn)
+    assert len(current_managed_policy["Statement"][0]["Action"]) == 3
+
+    remediate(updated_event)
+    current_managed_policy = get_current_managed_policy(iam_client, test_policy_arn)
+    assert len(current_managed_policy["Statement"][0]["Action"]) == 2
