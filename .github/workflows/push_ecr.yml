@@ -6,7 +6,11 @@ on:
     branches:
       - main
     paths:
-      - src/app/*
+      - '**.py'
+
+permissions:
+  contents: read
+  id-token: write
 
 jobs:
   build_and_push_ecr:
@@ -31,5 +35,5 @@ jobs:
           REPOSITORY: ${{ vars.ECR_IAM_HANDLER_REPO }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG -f src/app/iam_event_handler .
+          docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG -f src/app/iam_event_handler/Dockerfile .
           docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
