@@ -4,3 +4,4 @@ TEST_POLICIES = [
     "arn:aws:iam::aws:policy/CloudWatchReadOnlyAccess",
 ]
 TEST_MANAGED_POLICY_NAME = "test_managed_policy"
+TEST_INLINE_POLICY_NAME = "test_inline_policy"

@@ -4,26 +4,27 @@ import boto3
 from moto import mock_iam
 
 from app.iam_event_handler.constants import WHITELISTED_IAM_USERS_VARIABLE
+from app.iam_event_handler.remediate import get_managed_policies_for_role, remediate
 from app.iam_event_handler.utils import (
     IdentityType,
     extract_principal,
     extract_whitelisted_principals,
-    get_managed_policies_for_role,
     is_whitelisted_principal,
-    remediate,
 )
 
-from .constants import TEST_ROLE_NAME
+from .constants import TEST_INLINE_POLICY_NAME, TEST_ROLE_NAME
 from .events import (
     ATTACH_ROLE_POLICY_EVENT,
     CREATE_POLICY_VERSION_EVENT,
     CREATE_ROLE_EVENT,
     DETACH_ROLE_POLICY_EVENT,
     EVENT_FROM_ASSUME_ROLE,
+    PUT_ROLE_POLICY_EVENT,
 )
 from .utils import (
     create_iam_role,
     create_managed_policy,
+    create_role_with_inline_policies,
     create_role_with_managed_policies,
     get_current_managed_policy,
     updated_managed_policy,
@@ -68,7 +69,7 @@ def test_is_whitelisted_principal():
 
 
 @mock_iam
-def test_create_role_with_managed_policy_remediation():
+def test_remediate_create_role_with_managed_policy():
     # Update event to have the test role name
     updated_event = CREATE_ROLE_EVENT
     updated_event["detail"]["requestParameters"]["roleName"] = TEST_ROLE_NAME
@@ -85,7 +86,7 @@ def test_create_role_with_managed_policy_remediation():
 
 
 @mock_iam
-def test_update_role_by_adding_attach_managed_policy_remediation():
+def test_remediate_update_role_by_adding_attach_managed_policy():
     updated_event = ATTACH_ROLE_POLICY_EVENT
 
     test_policy = "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"
@@ -104,7 +105,7 @@ def test_update_role_by_adding_attach_managed_policy_remediation():
 
 
 @mock_iam
-def test_update_role_by_detaching_managed_policy_remediation():
+def test_remediate_update_role_by_detaching_managed_policy():
     updated_event = DETACH_ROLE_POLICY_EVENT
     test_policy = "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"
     updated_event["detail"]["requestParameters"]["roleName"] = TEST_ROLE_NAME
@@ -122,7 +123,7 @@ def test_update_role_by_detaching_managed_policy_remediation():
 
 
 @mock_iam
-def test_update_managed_policy_assigned_to_a_role_remediation():
+def test_remediate_update_managed_policy_assigned_to_a_role():
     updated_event = CREATE_POLICY_VERSION_EVENT
     iam_client = boto3.client("iam")
     test_policy_arn = create_managed_policy(iam_client)
@@ -139,3 +140,21 @@ def test_update_managed_policy_assigned_to_a_role_remediation():
     remediate(updated_event)
     current_managed_policy = get_current_managed_policy(iam_client, test_policy_arn)
     assert len(current_managed_policy["Statement"][0]["Action"]) == 2
+
+
+@mock_iam
+def test_remediate_create_a_role_with_inline_policy():
+    updated_event = PUT_ROLE_POLICY_EVENT
+    iam_client = boto3.client("iam")
+    create_role_with_inline_policies(iam_client)
+
+    updated_event["detail"]["requestParameters"]["roleName"] = TEST_ROLE_NAME
+    updated_event["detail"]["requestParameters"]["policyName"] = TEST_INLINE_POLICY_NAME
+
+    response = iam_client.list_role_policies(RoleName=TEST_ROLE_NAME)
+    assert len(response["PolicyNames"]) == 1
+
+    remediate(updated_event)
+
+    response = iam_client.list_role_policies(RoleName=TEST_ROLE_NAME)
+    assert len(response["PolicyNames"]) == 0

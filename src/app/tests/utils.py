@@ -1,6 +1,11 @@
 import json
 
-from .constants import TEST_MANAGED_POLICY_NAME, TEST_POLICIES, TEST_ROLE_NAME
+from .constants import (
+    TEST_INLINE_POLICY_NAME,
+    TEST_MANAGED_POLICY_NAME,
+    TEST_POLICIES,
+    TEST_ROLE_NAME,
+)
 
 
 def create_iam_role(iam_client):
@@ -30,6 +35,25 @@ def create_role_with_managed_policies(iam_client):
     # Attach managed policies to the role
     for policy_arn in TEST_POLICIES:
         iam_client.attach_role_policy(RoleName=TEST_ROLE_NAME, PolicyArn=policy_arn)
+
+
+def create_role_with_inline_policies(iam_client):
+    create_iam_role(iam_client)
+    policy_document = {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Action": "s3:GetObject",
+                "Resource": "arn:aws:s3:::example-bucket/*",
+            }
+        ],
+    }
+    iam_client.put_role_policy(
+        RoleName=TEST_ROLE_NAME,
+        PolicyName=TEST_INLINE_POLICY_NAME,
+        PolicyDocument=json.dumps(policy_document),
+    )
 
 
 def create_managed_policy(iam_client):
