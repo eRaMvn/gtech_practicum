@@ -72,5 +72,5 @@ def is_whitelisted_principal(
     return False
 
 
-def upload_file_to_s3(file_path, bucket_name, key, s3_client):
-    s3_client.upload_file(file_path, bucket_name, key)
+def upload_file_to_s3(data, bucket_name, key, s3_client):
+    s3_client.put_object(Bucket=bucket_name, Key=key, Body=data)

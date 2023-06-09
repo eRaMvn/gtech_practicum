@@ -1,7 +1,9 @@
 import json
 
 from .constants import (
+    TEST_INLINE_POLICY,
     TEST_INLINE_POLICY_NAME,
+    TEST_MANAGED_POLICY,
     TEST_MANAGED_POLICY_NAME,
     TEST_POLICIES,
     TEST_ROLE_NAME,
@@ -39,40 +41,17 @@ def create_role_with_managed_policies(iam_client):
 
 def create_role_with_inline_policies(iam_client):
     create_iam_role(iam_client)
-    policy_document = {
-        "Version": "2012-10-17",
-        "Statement": [
-            {
-                "Effect": "Allow",
-                "Action": "s3:GetObject",
-                "Resource": "arn:aws:s3:::example-bucket/*",
-            }
-        ],
-    }
     iam_client.put_role_policy(
         RoleName=TEST_ROLE_NAME,
         PolicyName=TEST_INLINE_POLICY_NAME,
-        PolicyDocument=json.dumps(policy_document),
+        PolicyDocument=json.dumps(TEST_INLINE_POLICY),
     )
 
 
 def create_managed_policy(iam_client):
     response = iam_client.create_policy(
         PolicyName=TEST_MANAGED_POLICY_NAME,
-        PolicyDocument="""{
-            "Version": "2012-10-17",
-            "Statement": [
-                {
-                    "Sid": "Stmt1234567890123",
-                    "Effect": "Allow",
-                    "Action": [
-                        "s3:GetObject",
-                        "s3:PutObject"
-                    ],
-                    "Resource": "*"
-                }
-            ]
-        }""",
+        PolicyDocument=json.dumps(TEST_MANAGED_POLICY),
     )
 
     return response["Policy"]["Arn"]
