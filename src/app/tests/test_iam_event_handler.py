@@ -3,15 +3,18 @@ import os
 
 import boto3
 
-from app.lambda_func.constants import BUCKET_NAME, WHITELISTED_IAM_USERS_VARIABLE
-from app.lambda_func.record import IAMPolicy, record
-from app.lambda_func.remediate import get_managed_policies_for_role, remediate
 from app.lambda_func.use_cases import (
     IdentityType,
     extract_principal,
     extract_whitelisted_principals,
     is_whitelisted_principal,
 )
+from app.lambda_func.use_cases.constants import (
+    BUCKET_NAME,
+    WHITELISTED_IAM_USERS_VARIABLE,
+)
+from app.lambda_func.use_cases.record import IAMPolicy, record
+from app.lambda_func.use_cases.remediate import get_managed_policies_for_role, remediate
 
 from .constants import (
     TEST_INLINE_POLICY,

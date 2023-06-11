@@ -1,7 +1,7 @@
 import boto3
 
-from .use_cases import EventName
-from .use_cases.iam import (
+from . import EventName
+from .iam import (
     attach_managed_policy_to_role,
     check_managed_policy_exists,
     check_policy_attached_to_any_role,

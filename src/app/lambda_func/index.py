@@ -1,10 +1,10 @@
-from .record import record
-from .remediate import remediate
-from .use_cases import (
+from use_cases import (
     extract_principal,
     extract_whitelisted_principals,
     is_whitelisted_principal,
 )
+from use_cases.record import record
+from use_cases.remediate import remediate
 
 
 def iam_event_handler(event, context):

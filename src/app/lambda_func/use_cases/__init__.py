@@ -2,7 +2,7 @@ import os
 from enum import Enum
 from typing import List, Set, Tuple
 
-from app.lambda_func.constants import (
+from .constants import (
     WHITELISTED_IAM_ROLES,
     WHITELISTED_IAM_ROLES_VARIABLE,
     WHITELISTED_IAM_USERS,

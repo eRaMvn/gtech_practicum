@@ -1,8 +1,10 @@
+import hashlib
 import json
 from typing import List
-import hashlib
-from .s3 import upload_file_to_s3, list_objects_in_s3
-from app.lambda_func.constants import BUCKET_NAME
+
+from .constants import BUCKET_NAME
+from .s3 import upload_file_to_s3
+
 
 class IAMPolicy:
     def calculate_sha256(self, string_value):
@@ -20,7 +22,6 @@ class IAMPolicy:
 
     def get_s3_managed_path(self, managed_policy_name):
         return f"managed_policies/{managed_policy_name}.json"
-
 
 
 def get_managed_policies_for_role(role_name: str, iam_client) -> List[str]:
@@ -124,7 +125,9 @@ def get_role_policies(role_name, iam_client):
     return managed_policies, inline_policies
 
 
-def write_inline_policy_to_s3(role_name, policy_name, iam_client, iam_policy_path_guide, s3_client):
+def write_inline_policy_to_s3(
+    role_name, policy_name, iam_client, iam_policy_path_guide, s3_client
+):
     response = iam_client.get_role_policy(RoleName=role_name, PolicyName=policy_name)
     policy_document = response["PolicyDocument"]
     upload_file_to_s3(
@@ -139,7 +142,9 @@ def is_customer_managed_policy(policy_arn):
     return policy_arn.startswith("arn:aws:iam::") and "policy/" in policy_arn
 
 
-def write_managed_policy_to_s3(policy_arn, iam_client, iam_policy_path_guide, s3_client):
+def write_managed_policy_to_s3(
+    policy_arn, iam_client, iam_policy_path_guide, s3_client
+):
     if is_customer_managed_policy(policy_arn):
         response = iam_client.get_policy(PolicyArn=policy_arn)
         policy_version = response["Policy"]["DefaultVersionId"]
@@ -155,7 +160,9 @@ def write_managed_policy_to_s3(policy_arn, iam_client, iam_policy_path_guide, s3
         )
 
 
-def write_managed_policies_list_to_s3(role_name, managed_policies,iam_policy_path_guide, s3_client):
+def write_managed_policies_list_to_s3(
+    role_name, managed_policies, iam_policy_path_guide, s3_client
+):
     upload_file_to_s3(
         json.dumps(managed_policies),
         BUCKET_NAME,

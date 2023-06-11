@@ -1,7 +1,6 @@
 import boto3
-
-from .use_cases import EventName
-from .use_cases.iam import (
+from . import EventName
+from .iam import (
     IAMPolicy,
     get_role_policies,
     write_inline_policy_to_s3,
