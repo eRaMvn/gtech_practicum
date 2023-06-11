@@ -9,5 +9,4 @@ test:
 
 update_requirements:
   pip-compile requirements.in
-  cp requirements.txt iam_event_handler/requirements.txt
-  cp requirements.txt policy_snapshot/requirements.txt
+  cp requirements.txt lambda_func/requirements.txt

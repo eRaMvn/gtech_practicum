@@ -1,9 +1,26 @@
 import json
 from typing import List
+import hashlib
+from .s3 import upload_file_to_s3, list_objects_in_s3
+from app.lambda_func.constants import BUCKET_NAME
 
-import boto3
+class IAMPolicy:
+    def calculate_sha256(self, string_value):
+        sha256_hash = hashlib.sha256()
+        sha256_hash.update(string_value.encode("utf-8"))
+        return sha256_hash.hexdigest()
 
-from .utils import EventName
+    # some_name could be role_name or policy_name
+    def get_s3_inline_path(self, some_name, inline_policy_name):
+        file_name = self.calculate_sha256(f"{some_name}_{inline_policy_name}")
+        return f"{some_name}/inline_policies/{file_name}.json"
+
+    def get_s3_managed_policies_list_path(self, some_name):
+        return f"{some_name}/managed_policies/list.json"
+
+    def get_s3_managed_path(self, managed_policy_name):
+        return f"managed_policies/{managed_policy_name}.json"
+
 
 
 def get_managed_policies_for_role(role_name: str, iam_client) -> List[str]:
@@ -95,62 +112,53 @@ def get_previous_policy_version(policy_arn, iam_client) -> str | None:
     return None
 
 
-def remediate_create_role(event: dict, iam_client) -> None:
-    role_name = event["detail"]["requestParameters"]["roleName"]
-    managed_policy_arns = get_managed_policies_for_role(role_name, iam_client)
-    detach_managed_policies_from_role(managed_policy_arns, role_name, iam_client)
-    iam_client.delete_role(RoleName=role_name)
+def get_role_policies(role_name, iam_client):
+    # Get managed policies attached to the role
+    response_managed = iam_client.list_attached_role_policies(RoleName=role_name)
+    managed_policies = response_managed["AttachedPolicies"]
+
+    # Get inline policies attached to the role
+    response_inline = iam_client.list_role_policies(RoleName=role_name)
+    inline_policies = response_inline["PolicyNames"]
+
+    return managed_policies, inline_policies
 
 
-# TODO: Handle the case where the role or policy does not exist
-def remediate_detach_role_policy(event: dict, iam_client) -> None:
-    role_name = event["detail"]["requestParameters"]["roleName"]
-    policy_arn = event["detail"]["requestParameters"]["policyArn"]
-    role_exists = check_role_exists(role_name, iam_client)
-    policy_exists = check_managed_policy_exists(policy_arn, iam_client)
+def write_inline_policy_to_s3(role_name, policy_name, iam_client, iam_policy_path_guide, s3_client):
+    response = iam_client.get_role_policy(RoleName=role_name, PolicyName=policy_name)
+    policy_document = response["PolicyDocument"]
+    upload_file_to_s3(
+        json.dumps(policy_document),
+        BUCKET_NAME,
+        iam_policy_path_guide.get_s3_inline_path(role_name, policy_name),
+        s3_client,
+    )
 
-    if role_exists and policy_exists:
-        attach_managed_policy_to_role(policy_arn, role_name, iam_client)
-        return
+
+def is_customer_managed_policy(policy_arn):
+    return policy_arn.startswith("arn:aws:iam::") and "policy/" in policy_arn
 
 
-def remediate_create_policy_version(event: dict, iam_client):
-    policy_arn = event["detail"]["requestParameters"]["policyArn"]
-
-    if not check_policy_attached_to_any_role(policy_arn, iam_client):
-        return
-
-    previous_version_id = get_previous_policy_version(policy_arn, iam_client)
-    if previous_version_id:
-        update_managed_policy_to_certain_version(
-            policy_arn, previous_version_id, iam_client
+def write_managed_policy_to_s3(policy_arn, iam_client, iam_policy_path_guide, s3_client):
+    if is_customer_managed_policy(policy_arn):
+        response = iam_client.get_policy(PolicyArn=policy_arn)
+        policy_version = response["Policy"]["DefaultVersionId"]
+        policy_document = iam_client.get_policy_version(
+            PolicyArn=policy_arn, VersionId=policy_version
+        )["PolicyVersion"]["Document"]
+        policy_name = policy_arn.split("/")[-1]
+        upload_file_to_s3(
+            json.dumps(policy_document),
+            BUCKET_NAME,
+            iam_policy_path_guide.get_s3_managed_path(policy_name),
+            s3_client,
         )
 
 
-# TODO: Address the case when an inline policy is attached to the role is updated. How to detect that vs creating a new role with an inline policy?
-def remediate_put_role_policy(event: dict, iam_client) -> None:
-    role_name = event["detail"]["requestParameters"]["roleName"]
-    policy_name = event["detail"]["requestParameters"]["policyName"]
-
-    iam_client.delete_role_policy(RoleName=role_name, PolicyName=policy_name)
-
-
-def remediate(event: dict) -> None:
-    iam_client = boto3.client("iam")
-    event_name = event["detail"]["eventName"]
-
-    match event_name:
-        case EventName.CREATE_ROLE.value:
-            remediate_create_role(event, iam_client)
-        case EventName.ATTACH_ROLE_POLICY.value:
-            role_name = event["detail"]["requestParameters"]["roleName"]
-            policy_arn = event["detail"]["requestParameters"]["policyArn"]
-            detach_managed_policy_from_role(policy_arn, role_name, iam_client)
-        case EventName.DETACH_ROLE_POLICY.value:
-            remediate_detach_role_policy(event, iam_client)
-        case EventName.CREATE_POLICY_VERSION.value:
-            remediate_create_policy_version(event, iam_client)
-        case EventName.PUT_ROLE_POLICY.value:
-            remediate_put_role_policy(event, iam_client)
-
-    return None
+def write_managed_policies_list_to_s3(role_name, managed_policies,iam_policy_path_guide, s3_client):
+    upload_file_to_s3(
+        json.dumps(managed_policies),
+        BUCKET_NAME,
+        iam_policy_path_guide.get_s3_managed_policies_list_path(role_name),
+        s3_client,
+    )

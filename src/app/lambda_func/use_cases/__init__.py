@@ -2,7 +2,7 @@ import os
 from enum import Enum
 from typing import List, Set, Tuple
 
-from .constants import (
+from app.lambda_func.constants import (
     WHITELISTED_IAM_ROLES,
     WHITELISTED_IAM_ROLES_VARIABLE,
     WHITELISTED_IAM_USERS,
@@ -70,17 +70,3 @@ def is_whitelisted_principal(
     elif principal_type == IdentityType.IAM_USER:
         return principal_name in whitelisted_users
     return False
-
-
-def upload_file_to_s3(data, bucket_name, key, s3_client):
-    s3_client.put_object(Bucket=bucket_name, Key=key, Body=data)
-
-
-def list_objects_in_s3(bucket_name, path, s3_client):
-    response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=path)
-
-    # Iterate over the objects and print their keys
-    if "Contents" in response:
-        return [obj["Key"] for obj in response["Contents"]]
-    else:
-        return []

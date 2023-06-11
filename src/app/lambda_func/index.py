@@ -1,13 +1,13 @@
 from .record import record
 from .remediate import remediate
-from .utils import (
+from .use_cases import (
     extract_principal,
     extract_whitelisted_principals,
     is_whitelisted_principal,
 )
 
 
-def lambda_handler(event, context):
+def iam_event_handler(event, context):
     principal_type, principal_name = extract_principal(event)
     whitelisted_users, whitelisted_roles = extract_whitelisted_principals()
 
@@ -17,3 +17,7 @@ def lambda_handler(event, context):
         record(event)
     else:
         remediate(event)
+
+
+def policy_snapshot_handler(event, context):
+    return {"statusCode": 200, "body": "Hello from Lambda!"}
