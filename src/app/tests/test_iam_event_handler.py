@@ -17,6 +17,7 @@ from .constants import (
     TEST_INLINE_POLICY,
     TEST_INLINE_POLICY_NAME,
     TEST_MANAGED_POLICY,
+    TEST_MANAGED_POLICY_NAME,
     TEST_ROLE_NAME,
 )
 from .events import (
@@ -72,6 +73,28 @@ def test_is_whitelisted_principal():
         )
         is True
     )
+
+
+def test_upload_managed_policies_list_to_s3(iam_client, s3_client):
+    updated_event = CREATE_ROLE_EVENT
+    updated_event["detail"]["requestParameters"]["roleName"] = TEST_ROLE_NAME
+    iam_guide = IAMPolicy()
+
+    create_iam_role(iam_client)
+    test_policy_arn = create_managed_policy(iam_client)
+    iam_client.attach_role_policy(RoleName=TEST_ROLE_NAME, PolicyArn=test_policy_arn)
+
+    s3_client.create_bucket(Bucket=BUCKET_NAME)
+    managed_policies_list_path = iam_guide.get_s3_managed_policies_list_path(
+        TEST_ROLE_NAME
+    )
+
+    record(updated_event)
+    response = s3_client.get_object(Bucket=BUCKET_NAME, Key=managed_policies_list_path)
+
+    assert json.loads(response["Body"].read().decode("utf-8")) == [
+        f"arn:aws:iam::123456789012:policy/{TEST_MANAGED_POLICY_NAME}"
+    ]
 
 
 def test_upload_managed_policies_to_s3(iam_client, s3_client):

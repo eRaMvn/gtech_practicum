@@ -18,6 +18,9 @@ class IAMPolicy:
         file_name = self.calculate_sha256(f"{some_name}_{inline_policy_name}")
         return f"{some_name}/inline_policies/{file_name}.json"
 
+    def get_s3_managed_policies_list_path(self, some_name):
+        return f"{some_name}/managed_policies/list.json"
+
     def get_s3_managed_path(self, managed_policy_name):
         return f"managed_policies/{managed_policy_name}.json"
 
@@ -37,7 +40,7 @@ def get_role_policies(role_name, iam_client):
     return managed_policies, inline_policies
 
 
-def write_inline_policy_to_file_and_s3(role_name, policy_name, iam_client, s3_client):
+def write_inline_policy_to_s3(role_name, policy_name, iam_client, s3_client):
     response = iam_client.get_role_policy(RoleName=role_name, PolicyName=policy_name)
     policy_document = response["PolicyDocument"]
     upload_file_to_s3(
@@ -52,7 +55,7 @@ def is_customer_managed_policy(policy_arn):
     return policy_arn.startswith("arn:aws:iam::") and "policy/" in policy_arn
 
 
-def write_managed_policy_to_file_and_s3(policy_arn, iam_client, s3_client):
+def write_managed_policy_to_s3(policy_arn, iam_client, s3_client):
     if is_customer_managed_policy(policy_arn):
         response = iam_client.get_policy(PolicyArn=policy_arn)
         policy_version = response["Policy"]["DefaultVersionId"]
@@ -66,6 +69,15 @@ def write_managed_policy_to_file_and_s3(policy_arn, iam_client, s3_client):
             iam_policy_path_guide.get_s3_managed_path(policy_name),
             s3_client,
         )
+
+
+def write_managed_policies_list_to_s3(role_name, managed_policies, s3_client):
+    upload_file_to_s3(
+        json.dumps(managed_policies),
+        BUCKET_NAME,
+        iam_policy_path_guide.get_s3_managed_policies_list_path(role_name),
+        s3_client,
+    )
 
 
 def record(event: dict) -> None:
@@ -83,13 +95,16 @@ def record(event: dict) -> None:
     if event_name in all_role_events:
         role_name = event["detail"]["requestParameters"]["roleName"]
         managed_policies, inline_policies = get_role_policies(role_name, iam_client)
+        managed_policies_arns = []
 
         for each_managed_policy in managed_policies:
-            write_managed_policy_to_file_and_s3(
-                each_managed_policy["PolicyArn"], iam_client, s3_client
-            )
+            managed_policy_arn = each_managed_policy["PolicyArn"]
+            write_managed_policy_to_s3(managed_policy_arn, iam_client, s3_client)
+            managed_policies_arns.append(managed_policy_arn)
 
         for each_inline_policy in inline_policies:
-            write_inline_policy_to_file_and_s3(
+            write_inline_policy_to_s3(
                 role_name, each_inline_policy, iam_client, s3_client
             )
+
+        write_managed_policies_list_to_s3(role_name, managed_policies_arns, s3_client)
