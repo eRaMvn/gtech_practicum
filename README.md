@@ -9,7 +9,7 @@ IAM Keeper is to revert the state of IAM User and Role to the baseline if non-de
     - inline_policies
       - policy_1.json
       - policy_2.json
-    - managed_policies/list.txt
+    - managed_policies/list.json
     - state.txt
 
 - user
@@ -17,7 +17,7 @@ IAM Keeper is to revert the state of IAM User and Role to the baseline if non-de
     - inline_policies
       - policy_1.json
       - policy_2.json
-    - managed_policies/list.txt
+    - managed_policies/list.json
     - state.txt
 
 - managed_policies
