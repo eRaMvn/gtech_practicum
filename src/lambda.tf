@@ -21,16 +21,16 @@ resource "aws_iam_role" "iam_keeper_event_handler_lambda_role" {
       Statement = [
         {
           Action = [
-            "S3:Get*",
-            "S3:Put*",
-            "S3:List*",
+            "s3:Get*",
+            "s3:Put*",
+            "s3:List*",
           ]
           Effect = "Allow"
           Resource = [
             "arn:aws:s3:::${var.s3_bucket_name}/*",
             "arn:aws:s3:::${var.s3_bucket_name}"
           ]
-        },
+        }
       ]
     })
   }
@@ -39,7 +39,9 @@ resource "aws_iam_role" "iam_keeper_event_handler_lambda_role" {
 resource "aws_lambda_function" "iam_event_handler_func" {
   function_name = "iam_keeper_event_handler"
   role          = aws_iam_role.iam_keeper_event_handler_lambda_role.arn
-  image_uri     = "014824332634.dkr.ecr.us-east-1.amazonaws.com/iam_keeper_event_handler:${var.image_tag}"
+  image_uri     = "${var.account_id}.dkr.ecr.us-east-1.amazonaws.com/iam_keeper_event_handler:${var.image_tag}"
   package_type  = "Image"
+  memory_size   = 256
+  timeout       = 300
   depends_on    = [aws_iam_role.iam_keeper_event_handler_lambda_role]
 }
