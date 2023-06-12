@@ -24,6 +24,16 @@ class IAMPolicy:
         return f"managed_policies/{managed_policy_name}.json"
 
 
+def list_roles_and_users(iam_client):
+    response = iam_client.list_roles()
+    roles = response["Roles"]
+
+    response = iam_client.list_users()
+    users = response["Users"]
+
+    return roles, users
+
+
 def get_managed_policies_for_role(role_name: str, iam_client) -> List[str]:
     # Retrieve the list of attached policies for the role
     response = iam_client.list_attached_role_policies(RoleName=role_name)
@@ -123,6 +133,15 @@ def get_role_policies(role_name, iam_client):
     inline_policies = response_inline["PolicyNames"]
 
     return managed_policies, inline_policies
+
+
+def create_managed_policy(policy_name: str, policy_doc: dict, iam_client) -> str:
+    response = iam_client.create_policy(
+        PolicyName=policy_name,
+        PolicyDocument=json.dumps(policy_doc),
+    )
+
+    return response["Policy"]["Arn"]
 
 
 def write_inline_policy_to_s3(

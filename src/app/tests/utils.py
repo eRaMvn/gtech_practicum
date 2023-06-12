@@ -3,8 +3,6 @@ import json
 from .constants import (
     TEST_INLINE_POLICY,
     TEST_INLINE_POLICY_NAME,
-    TEST_MANAGED_POLICY,
-    TEST_MANAGED_POLICY_NAME,
     TEST_POLICIES,
     TEST_ROLE_NAME,
 )
@@ -46,15 +44,6 @@ def create_role_with_inline_policies(iam_client):
         PolicyName=TEST_INLINE_POLICY_NAME,
         PolicyDocument=json.dumps(TEST_INLINE_POLICY),
     )
-
-
-def create_managed_policy(iam_client):
-    response = iam_client.create_policy(
-        PolicyName=TEST_MANAGED_POLICY_NAME,
-        PolicyDocument=json.dumps(TEST_MANAGED_POLICY),
-    )
-
-    return response["Policy"]["Arn"]
 
 
 def updated_managed_policy(iam_client, policy_arn):

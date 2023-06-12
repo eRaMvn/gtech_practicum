@@ -28,3 +28,4 @@ IAM Keeper is to revert the state of IAM User and Role to the baseline if non-de
 
 - Add log events
 - Develop function
+- Handle race condition

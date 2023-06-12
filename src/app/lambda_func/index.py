@@ -1,9 +1,11 @@
+import boto3
 from use_cases import (
     extract_principal,
     extract_whitelisted_principals,
     is_whitelisted_principal,
 )
-from use_cases.record import record
+from use_cases.iam import list_roles_and_users
+from use_cases.record import record, record_all_policies_for_role
 from use_cases.remediate import remediate
 
 
@@ -20,4 +22,7 @@ def iam_event_handler(event, context):
 
 
 def policy_snapshot_handler(event, context):
-    return {"statusCode": 200, "body": "Hello from Lambda!"}
+    iam_client = boto3.client("iam")
+    s3_client = boto3.client("s3")
+    roles, users = list_roles_and_users(iam_client)
+    record_all_policies_for_role(roles, iam_client, s3_client)

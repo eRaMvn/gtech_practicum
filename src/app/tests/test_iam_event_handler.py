@@ -1,8 +1,6 @@
 import json
 import os
 
-import boto3
-
 from app.lambda_func.use_cases import (
     IdentityType,
     extract_principal,
@@ -13,8 +11,10 @@ from app.lambda_func.use_cases.constants import (
     BUCKET_NAME,
     WHITELISTED_IAM_USERS_VARIABLE,
 )
-from app.lambda_func.use_cases.record import IAMPolicy, record
+from app.lambda_func.use_cases.iam import IAMPolicy, create_managed_policy
+from app.lambda_func.use_cases.record import record
 from app.lambda_func.use_cases.remediate import get_managed_policies_for_role, remediate
+from app.lambda_func.use_cases.s3 import upload_file_to_s3
 
 from .constants import (
     TEST_INLINE_POLICY,
@@ -33,7 +33,6 @@ from .events import (
 )
 from .utils import (
     create_iam_role,
-    create_managed_policy,
     create_role_with_inline_policies,
     create_role_with_managed_policies,
     get_current_managed_policy,
@@ -84,7 +83,9 @@ def test_upload_managed_policies_list_to_s3(iam_client, s3_client):
     iam_guide = IAMPolicy()
 
     create_iam_role(iam_client)
-    test_policy_arn = create_managed_policy(iam_client)
+    test_policy_arn = create_managed_policy(
+        TEST_MANAGED_POLICY_NAME, TEST_MANAGED_POLICY, iam_client
+    )
     iam_client.attach_role_policy(RoleName=TEST_ROLE_NAME, PolicyArn=test_policy_arn)
 
     s3_client.create_bucket(Bucket=BUCKET_NAME)
@@ -106,7 +107,9 @@ def test_upload_managed_policies_to_s3(iam_client, s3_client):
     iam_guide = IAMPolicy()
 
     create_iam_role(iam_client)
-    test_policy_arn = create_managed_policy(iam_client)
+    test_policy_arn = create_managed_policy(
+        TEST_MANAGED_POLICY_NAME, TEST_MANAGED_POLICY, iam_client
+    )
     test_policy_name = test_policy_arn.split("/")[-1]
     iam_client.attach_role_policy(RoleName=TEST_ROLE_NAME, PolicyArn=test_policy_arn)
 
@@ -157,7 +160,6 @@ def test_remediate_update_role_by_adding_attach_managed_policy(iam_client):
     test_policy = "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"
     updated_event["detail"]["requestParameters"]["roleName"] = TEST_ROLE_NAME
     updated_event["detail"]["requestParameters"]["policyArn"] = test_policy
-    iam_client = boto3.client("iam")
 
     create_iam_role(iam_client)
     iam_client.attach_role_policy(RoleName=TEST_ROLE_NAME, PolicyArn=test_policy)
@@ -175,8 +177,6 @@ def test_remediate_update_role_by_detaching_managed_policy(iam_client):
     updated_event["detail"]["requestParameters"]["roleName"] = TEST_ROLE_NAME
     updated_event["detail"]["requestParameters"]["policyArn"] = test_policy
 
-    iam_client = boto3.client("iam")
-
     create_role_with_managed_policies(iam_client)
     managed_policy_arns = get_managed_policies_for_role(TEST_ROLE_NAME, iam_client)
     assert len(managed_policy_arns) == 2
@@ -186,10 +186,35 @@ def test_remediate_update_role_by_detaching_managed_policy(iam_client):
     assert len(managed_policy_arns) == 3
 
 
+def test_remediate_update_role_by_deleting_an_user_managed_policy(
+    iam_client, s3_client
+):
+    updated_event = DETACH_ROLE_POLICY_EVENT
+    test_policy = f"arn:aws:iam::123456789012:policy/{TEST_MANAGED_POLICY_NAME}"
+    updated_event["detail"]["requestParameters"]["roleName"] = TEST_ROLE_NAME
+    updated_event["detail"]["requestParameters"]["policyArn"] = test_policy
+
+    iam_guide = IAMPolicy()
+
+    create_iam_role(iam_client)
+    managed_policy_arns = get_managed_policies_for_role(TEST_ROLE_NAME, iam_client)
+    assert len(managed_policy_arns) == 0
+
+    s3_client.create_bucket(Bucket=BUCKET_NAME)
+    managed_policy_s3_path = iam_guide.get_s3_managed_path(TEST_MANAGED_POLICY_NAME)
+    upload_file_to_s3(
+        json.dumps(TEST_MANAGED_POLICY), BUCKET_NAME, managed_policy_s3_path, s3_client
+    )
+    remediate(updated_event)
+    managed_policy_arns = get_managed_policies_for_role(TEST_ROLE_NAME, iam_client)
+    assert len(managed_policy_arns) == 1
+
+
 def test_remediate_update_managed_policy_assigned_to_a_role(iam_client):
     updated_event = CREATE_POLICY_VERSION_EVENT
-    iam_client = boto3.client("iam")
-    test_policy_arn = create_managed_policy(iam_client)
+    test_policy_arn = create_managed_policy(
+        TEST_MANAGED_POLICY_NAME, TEST_MANAGED_POLICY, iam_client
+    )
     updated_event["detail"]["requestParameters"]["roleName"] = TEST_ROLE_NAME
     updated_event["detail"]["requestParameters"]["policyArn"] = test_policy_arn
 
@@ -207,7 +232,6 @@ def test_remediate_update_managed_policy_assigned_to_a_role(iam_client):
 
 def test_remediate_create_a_role_with_inline_policy(iam_client):
     updated_event = PUT_ROLE_POLICY_EVENT
-    iam_client = boto3.client("iam")
     create_role_with_inline_policies(iam_client)
 
     updated_event["detail"]["requestParameters"]["roleName"] = TEST_ROLE_NAME

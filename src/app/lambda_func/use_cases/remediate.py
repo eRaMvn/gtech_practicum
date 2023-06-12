@@ -1,17 +1,24 @@
+import json
+
 import boto3
 
 from . import EventName
+from .constants import BUCKET_NAME
 from .iam import (
+    IAMPolicy,
     attach_managed_policy_to_role,
     check_managed_policy_exists,
     check_policy_attached_to_any_role,
     check_role_exists,
+    create_managed_policy,
     detach_managed_policies_from_role,
     detach_managed_policy_from_role,
     get_managed_policies_for_role,
     get_previous_policy_version,
     update_managed_policy_to_certain_version,
 )
+
+iam_policy_path_guide = IAMPolicy()
 
 
 def remediate_create_role(event: dict, iam_client) -> None:
@@ -21,8 +28,8 @@ def remediate_create_role(event: dict, iam_client) -> None:
     iam_client.delete_role(RoleName=role_name)
 
 
-# TODO: Handle the case where the role or policy does not exist
-def remediate_detach_role_policy(event: dict, iam_client) -> None:
+# TODO: Handle the case where the role does not exist
+def remediate_detach_role_policy(event: dict, iam_client, s3_client) -> None:
     role_name = event["detail"]["requestParameters"]["roleName"]
     policy_arn = event["detail"]["requestParameters"]["policyArn"]
     role_exists = check_role_exists(role_name, iam_client)
@@ -30,6 +37,23 @@ def remediate_detach_role_policy(event: dict, iam_client) -> None:
 
     if role_exists and policy_exists:
         attach_managed_policy_to_role(policy_arn, role_name, iam_client)
+        return
+    elif role_exists and not policy_exists:
+        managed_policy_name = policy_arn.split("/")[-1]
+        policy_s3_path = iam_policy_path_guide.get_s3_managed_path(managed_policy_name)
+
+        try:
+            response = s3_client.get_object(Bucket=BUCKET_NAME, Key=policy_s3_path)
+            policy_dict = json.loads(response["Body"].read().decode("utf-8"))
+            new_policy_arn = create_managed_policy(
+                managed_policy_name, policy_dict, iam_client
+            )
+
+            iam_client.attach_role_policy(RoleName=role_name, PolicyArn=new_policy_arn)
+        except s3_client.exceptions.NoSuchKey:
+            print(f"Policy {policy_s3_path} does not exist in S3 bucket {BUCKET_NAME}")
+            pass
+
         return
 
 
@@ -56,6 +80,7 @@ def remediate_put_role_policy(event: dict, iam_client) -> None:
 
 def remediate(event: dict) -> None:
     iam_client = boto3.client("iam")
+    s3_client = boto3.client("s3")
     event_name = event["detail"]["eventName"]
 
     match event_name:
@@ -66,7 +91,7 @@ def remediate(event: dict) -> None:
             policy_arn = event["detail"]["requestParameters"]["policyArn"]
             detach_managed_policy_from_role(policy_arn, role_name, iam_client)
         case EventName.DETACH_ROLE_POLICY.value:
-            remediate_detach_role_policy(event, iam_client)
+            remediate_detach_role_policy(event, iam_client, s3_client)
         case EventName.CREATE_POLICY_VERSION.value:
             remediate_create_policy_version(event, iam_client)
         case EventName.PUT_ROLE_POLICY.value:
