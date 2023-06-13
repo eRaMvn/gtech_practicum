@@ -59,6 +59,8 @@ resource "aws_iam_role" "iam_keeper_policy_snapshot_lambda_role" {
         {
           Action = [
             "iam:Get*",
+            "iam:List*",
+            "iam:Describe*",
           ]
           Effect = "Allow"
           Resource = [
