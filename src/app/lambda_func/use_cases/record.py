@@ -4,6 +4,7 @@ from . import EventName
 from .iam import (
     IAMPolicy,
     get_role_policies,
+    list_roles_and_users,
     write_inline_policy_to_s3,
     write_managed_policies_list_to_s3,
     write_managed_policy_to_s3,
@@ -35,6 +36,12 @@ def record_all_policies_for_role(role_name: str, iam_client, s3_client) -> None:
     write_managed_policies_list_to_s3(
         role_name, managed_policies_arns, iam_policy_path_guide, s3_client
     )
+
+
+def record_all_policies_for_users_and_roles(iam_client, s3_client) -> None:
+    role_records, user_records = list_roles_and_users(iam_client)
+    for each_record in role_records:
+        record_all_policies_for_role(each_record["RoleName"], iam_client, s3_client)
 
 
 def record(event: dict) -> None:

@@ -4,8 +4,7 @@ from use_cases import (
     extract_whitelisted_principals,
     is_whitelisted_principal,
 )
-from use_cases.iam import list_roles_and_users
-from use_cases.record import record, record_all_policies_for_role
+from use_cases.record import record, record_all_policies_for_users_and_roles
 from use_cases.remediate import remediate
 
 
@@ -24,5 +23,4 @@ def iam_event_handler(event, context):
 def policy_snapshot_handler(event, context):
     iam_client = boto3.client("iam")
     s3_client = boto3.client("s3")
-    roles, users = list_roles_and_users(iam_client)
-    record_all_policies_for_role(roles, iam_client, s3_client)
+    record_all_policies_for_users_and_roles(iam_client, s3_client)

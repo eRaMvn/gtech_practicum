@@ -4,7 +4,10 @@ check:
 filter PATTERN CASE:
   pytest tests/{{PATTERN}} -k {{CASE}}
 
-test:
+test PATTERN:
+  pytest tests/{{PATTERN}}
+
+tests:
   pytest tests
 
 update_requirements:

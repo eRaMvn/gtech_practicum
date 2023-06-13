@@ -1,9 +1,15 @@
 import hashlib
 import json
+from enum import Enum
 from typing import List
 
 from .constants import BUCKET_NAME
 from .s3 import upload_file_to_s3
+
+
+class IAMType(Enum):
+    ROLE = "role"
+    IAM_USER = "user"
 
 
 class IAMPolicy:
@@ -13,12 +19,16 @@ class IAMPolicy:
         return sha256_hash.hexdigest()
 
     # some_name could be role_name or policy_name
-    def get_s3_inline_path(self, some_name, inline_policy_name):
+    def get_s3_inline_path(self, some_name, inline_policy_name, type=IAMType.ROLE):
         file_name = self.calculate_sha256(f"{some_name}_{inline_policy_name}")
-        return f"{some_name}/inline_policies/{file_name}.json"
+        if type == IAMType.ROLE:
+            return f"roles/{some_name}/inline_policies/{file_name}.json"
+        return f"users/{some_name}/inline_policies/{file_name}.json"
 
-    def get_s3_managed_policies_list_path(self, some_name):
-        return f"{some_name}/managed_policies/list.json"
+    def get_s3_managed_policies_list_path(self, some_name, type=IAMType.ROLE):
+        if type == IAMType.ROLE:
+            return f"roles/{some_name}/managed_policies/list.json"
+        return f"users/{some_name}/managed_policies/list.json"
 
     def get_s3_managed_path(self, managed_policy_name):
         return f"managed_policies/{managed_policy_name}.json"
