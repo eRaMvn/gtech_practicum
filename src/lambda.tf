@@ -35,6 +35,8 @@ resource "aws_iam_role" "iam_keeper_event_handler_lambda_role" {
           Action = [
             "iam:Get*",
             "iam:Put*",
+            "iam:List*",
+            "iam:Describe*",
           ]
           Effect = "Allow"
           Resource = [
@@ -56,6 +58,18 @@ resource "aws_iam_role" "iam_keeper_policy_snapshot_lambda_role" {
     policy = jsonencode({
       Version = "2012-10-17"
       Statement = [
+        {
+          Action = [
+            "s3:Get*",
+            "s3:Put*",
+            "s3:List*",
+          ]
+          Effect = "Allow"
+          Resource = [
+            "arn:aws:s3:::${var.s3_bucket_name}/*",
+            "arn:aws:s3:::${var.s3_bucket_name}"
+          ]
+        },
         {
           Action = [
             "iam:Get*",
