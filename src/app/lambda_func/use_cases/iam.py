@@ -64,6 +64,17 @@ def check_role_exists(role_name, iam_client):
         return False
 
 
+def check_inline_policy_in_role(role_name, policy_name, iam_client):
+    response = iam_client.list_role_policies(RoleName=role_name)
+
+    policy_names = response["PolicyNames"]
+
+    if policy_name in policy_names:
+        return True
+
+    return False
+
+
 def check_managed_policy_exists(policy_arn, iam_client):
     try:
         # Retrieve information about the policy

@@ -27,6 +27,7 @@ from .events import (
     ATTACH_ROLE_POLICY_EVENT,
     CREATE_POLICY_VERSION_EVENT,
     CREATE_ROLE_EVENT,
+    DELETE_ROLE_POLICY_EVENT,
     DETACH_ROLE_POLICY_EVENT,
     EVENT_FROM_ASSUME_ROLE,
     PUT_ROLE_POLICY_EVENT,
@@ -244,3 +245,28 @@ def test_remediate_create_a_role_with_inline_policy(iam_client):
 
     response = iam_client.list_role_policies(RoleName=TEST_ROLE_NAME)
     assert len(response["PolicyNames"]) == 0
+
+
+def test_remediate_deleting_inline_policy_in_role(iam_client, s3_client):
+    updated_event = DELETE_ROLE_POLICY_EVENT
+    updated_event["detail"]["requestParameters"]["roleName"] = TEST_ROLE_NAME
+    updated_event["detail"]["requestParameters"]["policyName"] = TEST_INLINE_POLICY_NAME
+
+    iam_guide = IAMPolicy()
+
+    create_iam_role(iam_client)
+    response = iam_client.list_role_policies(RoleName=TEST_ROLE_NAME)
+    assert len(response["PolicyNames"]) == 0
+
+    s3_client.create_bucket(Bucket=BUCKET_NAME)
+    inline_policy_s3_path = iam_guide.get_s3_inline_path(
+        TEST_ROLE_NAME, TEST_INLINE_POLICY_NAME
+    )
+    upload_file_to_s3(
+        json.dumps(TEST_INLINE_POLICY), BUCKET_NAME, inline_policy_s3_path, s3_client
+    )
+
+    remediate(updated_event)
+
+    response = iam_client.list_role_policies(RoleName=TEST_ROLE_NAME)
+    assert len(response["PolicyNames"]) == 1

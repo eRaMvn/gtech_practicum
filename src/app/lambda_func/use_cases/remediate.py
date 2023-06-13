@@ -78,6 +78,26 @@ def remediate_put_role_policy(event: dict, iam_client) -> None:
     iam_client.delete_role_policy(RoleName=role_name, PolicyName=policy_name)
 
 
+# TODO: Handle when role does not exist
+def remediate_delete_role_policy(event: dict, iam_client, s3_client) -> None:
+    role_name = event["detail"]["requestParameters"]["roleName"]
+    inline_policy_name = event["detail"]["requestParameters"]["policyName"]
+    role_exists = check_role_exists(role_name, iam_client)
+    if role_exists:
+        role_inline_policy_s3_path = iam_policy_path_guide.get_s3_inline_path(
+            role_name, inline_policy_name
+        )
+        response = s3_client.get_object(
+            Bucket=BUCKET_NAME, Key=role_inline_policy_s3_path
+        )
+        inline_policy_dict = json.loads(response["Body"].read().decode("utf-8"))
+        iam_client.put_role_policy(
+            RoleName=role_name,
+            PolicyName=inline_policy_name,
+            PolicyDocument=json.dumps(inline_policy_dict),
+        )
+
+
 def remediate(event: dict) -> None:
     iam_client = boto3.client("iam")
     s3_client = boto3.client("s3")
@@ -96,5 +116,7 @@ def remediate(event: dict) -> None:
             remediate_create_policy_version(event, iam_client)
         case EventName.PUT_ROLE_POLICY.value:
             remediate_put_role_policy(event, iam_client)
+        case EventName.DELETE_ROLE_POLICY.value:
+            remediate_delete_role_policy(event, iam_client, s3_client)
 
     return None

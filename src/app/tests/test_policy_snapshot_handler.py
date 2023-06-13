@@ -1,9 +1,6 @@
 import json
 
-
-from app.lambda_func.use_cases.constants import (
-    BUCKET_NAME,
-)
+from app.lambda_func.use_cases.constants import BUCKET_NAME
 from app.lambda_func.use_cases.iam import IAMPolicy, create_managed_policy
 from app.lambda_func.use_cases.record import record_all_policies_for_users_and_roles
 
@@ -14,11 +11,7 @@ from .constants import (
     TEST_MANAGED_POLICY_NAME,
     TEST_ROLE_NAME,
 )
-
-from .utils import (
-    create_role_with_inline_policies,
-
-)
+from .utils import create_role_with_inline_policies
 
 
 def test_policy_snapshot_handler(iam_client, s3_client):
@@ -41,10 +34,14 @@ def test_policy_snapshot_handler(iam_client, s3_client):
         f"arn:aws:iam::123456789012:policy/{TEST_MANAGED_POLICY_NAME}"
     ]
 
-    role_inline_policy_s3_path = iam_guide.get_s3_inline_path(TEST_ROLE_NAME, TEST_INLINE_POLICY_NAME)
+    role_inline_policy_s3_path = iam_guide.get_s3_inline_path(
+        TEST_ROLE_NAME, TEST_INLINE_POLICY_NAME
+    )
     response = s3_client.get_object(Bucket=BUCKET_NAME, Key=role_inline_policy_s3_path)
     assert json.loads(response["Body"].read().decode("utf-8")) == TEST_INLINE_POLICY
 
-    role_managed_policy_s3_path = iam_guide.get_s3_managed_path(TEST_MANAGED_POLICY_NAME)
+    role_managed_policy_s3_path = iam_guide.get_s3_managed_path(
+        TEST_MANAGED_POLICY_NAME
+    )
     response = s3_client.get_object(Bucket=BUCKET_NAME, Key=role_managed_policy_s3_path)
     assert json.loads(response["Body"].read().decode("utf-8")) == TEST_MANAGED_POLICY
