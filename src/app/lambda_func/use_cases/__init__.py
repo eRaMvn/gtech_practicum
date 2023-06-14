@@ -17,6 +17,7 @@ class IdentityType(Enum):
 
 class EventName(Enum):
     # User events
+    CREATE_USER = "CreateUser"
     ATTACH_USER_POLICY = "AttachUserPolicy"
     DETACH_USER_POLICY = "DetachUserPolicy"
     DELETE_USER = "DeleteUser"

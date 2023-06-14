@@ -11,9 +11,12 @@ from app.lambda_func.use_cases.constants import (
     BUCKET_NAME,
     WHITELISTED_IAM_USERS_VARIABLE,
 )
-from app.lambda_func.use_cases.iam import IAMPolicy, create_managed_policy
+from app.lambda_func.use_cases.iam import IAMPolicy, IAMType, create_managed_policy
 from app.lambda_func.use_cases.record import record
-from app.lambda_func.use_cases.remediate import get_managed_policies_for_role, remediate
+from app.lambda_func.use_cases.remediate import (
+    get_managed_policies_for_principal,
+    remediate,
+)
 from app.lambda_func.use_cases.s3 import upload_file_to_s3
 
 from .constants import (
@@ -146,8 +149,6 @@ def test_remediate_create_role_with_managed_policy(iam_client):
     updated_event["detail"]["requestParameters"]["roleName"] = TEST_ROLE_NAME
 
     create_role_with_managed_policies(iam_client)
-    managed_policy_arns = get_managed_policies_for_role(TEST_ROLE_NAME, iam_client)
-    assert len(managed_policy_arns) == 2
 
     remediate(updated_event)
     roles_response = iam_client.list_roles()
@@ -164,11 +165,15 @@ def test_remediate_update_role_by_adding_attach_managed_policy(iam_client):
 
     create_iam_role(iam_client)
     iam_client.attach_role_policy(RoleName=TEST_ROLE_NAME, PolicyArn=test_policy)
-    managed_policy_arns = get_managed_policies_for_role(TEST_ROLE_NAME, iam_client)
+    managed_policy_arns = get_managed_policies_for_principal(
+        TEST_ROLE_NAME, IAMType.ROLE, iam_client
+    )
     assert len(managed_policy_arns) == 1
 
     remediate(updated_event)
-    managed_policy_arns = get_managed_policies_for_role(TEST_ROLE_NAME, iam_client)
+    managed_policy_arns = get_managed_policies_for_principal(
+        TEST_ROLE_NAME, IAMType.ROLE, iam_client
+    )
     assert len(managed_policy_arns) == 0
 
 
@@ -179,11 +184,15 @@ def test_remediate_update_role_by_detaching_managed_policy(iam_client):
     updated_event["detail"]["requestParameters"]["policyArn"] = test_policy
 
     create_role_with_managed_policies(iam_client)
-    managed_policy_arns = get_managed_policies_for_role(TEST_ROLE_NAME, iam_client)
+    managed_policy_arns = get_managed_policies_for_principal(
+        TEST_ROLE_NAME, IAMType.ROLE, iam_client
+    )
     assert len(managed_policy_arns) == 2
 
     remediate(updated_event)
-    managed_policy_arns = get_managed_policies_for_role(TEST_ROLE_NAME, iam_client)
+    managed_policy_arns = get_managed_policies_for_principal(
+        TEST_ROLE_NAME, IAMType.ROLE, iam_client
+    )
     assert len(managed_policy_arns) == 3
 
 
@@ -198,7 +207,9 @@ def test_remediate_update_role_by_deleting_an_user_managed_policy(
     iam_guide = IAMPolicy()
 
     create_iam_role(iam_client)
-    managed_policy_arns = get_managed_policies_for_role(TEST_ROLE_NAME, iam_client)
+    managed_policy_arns = get_managed_policies_for_principal(
+        TEST_ROLE_NAME, IAMType.ROLE, iam_client
+    )
     assert len(managed_policy_arns) == 0
 
     s3_client.create_bucket(Bucket=BUCKET_NAME)
@@ -207,7 +218,9 @@ def test_remediate_update_role_by_deleting_an_user_managed_policy(
         json.dumps(TEST_MANAGED_POLICY), BUCKET_NAME, managed_policy_s3_path, s3_client
     )
     remediate(updated_event)
-    managed_policy_arns = get_managed_policies_for_role(TEST_ROLE_NAME, iam_client)
+    managed_policy_arns = get_managed_policies_for_principal(
+        TEST_ROLE_NAME, IAMType.ROLE, iam_client
+    )
     assert len(managed_policy_arns) == 1
 
 

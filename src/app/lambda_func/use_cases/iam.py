@@ -44,9 +44,16 @@ def list_roles_and_users(iam_client):
     return roles, users
 
 
-def get_managed_policies_for_role(role_name: str, iam_client) -> List[str]:
-    # Retrieve the list of attached policies for the role
-    response = iam_client.list_attached_role_policies(RoleName=role_name)
+def get_managed_policies_for_principal(
+    principal_name: str, principal_type: IAMType, iam_client
+) -> List[str]:
+    if principal_type == IAMType.ROLE:
+        # Retrieve the list of attached policies for the role
+        response = iam_client.list_attached_role_policies(RoleName=principal_name)
+    else:
+        # Retrieve the list of attached policies for the user
+        response = iam_client.list_attached_user_policies(UserName=principal_name)
+
     attached_policies = response["AttachedPolicies"]
 
     # Extract the policy ARNs from the response
@@ -88,16 +95,23 @@ def attach_managed_policy_to_role(policy_arn: str, role_name: str, iam_client):
     iam_client.attach_role_policy(RoleName=role_name, PolicyArn=policy_arn)
 
 
-def detach_managed_policy_from_role(policy_arn: str, role_name: str, iam_client):
-    iam_client.detach_role_policy(RoleName=role_name, PolicyArn=policy_arn)
+def detach_managed_policy_from_principal(
+    policy_arn: str, principal_name: str, principal_type: IAMType, iam_client
+):
+    if principal_type == IAMType.ROLE:
+        iam_client.detach_role_policy(RoleName=principal_name, PolicyArn=policy_arn)
+    else:
+        iam_client.detach_user_policy(UserName=principal_name, PolicyArn=policy_arn)
 
 
-def detach_managed_policies_from_role(
-    policy_arns: List[str], role_name: str, iam_client
+def detach_managed_policies_from_principal(
+    policy_arns: List[str], principal_name: str, principal_type: IAMType, iam_client
 ):
     # Detach each policy from the role
     for policy_arn in policy_arns:
-        detach_managed_policy_from_role(policy_arn, role_name, iam_client)
+        detach_managed_policy_from_principal(
+            policy_arn, principal_name, principal_type, iam_client
+        )
 
 
 def check_policy_attached_to_any_role(policy_arn, iam_client) -> bool:

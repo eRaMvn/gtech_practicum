@@ -6,14 +6,15 @@ from . import EventName
 from .constants import BUCKET_NAME
 from .iam import (
     IAMPolicy,
+    IAMType,
     attach_managed_policy_to_role,
     check_managed_policy_exists,
     check_policy_attached_to_any_role,
     check_role_exists,
     create_managed_policy,
-    detach_managed_policies_from_role,
-    detach_managed_policy_from_role,
-    get_managed_policies_for_role,
+    detach_managed_policies_from_principal,
+    detach_managed_policy_from_principal,
+    get_managed_policies_for_principal,
     get_previous_policy_version,
     update_managed_policy_to_certain_version,
 )
@@ -23,8 +24,12 @@ iam_policy_path_guide = IAMPolicy()
 
 def remediate_create_role(event: dict, iam_client) -> None:
     role_name = event["detail"]["requestParameters"]["roleName"]
-    managed_policy_arns = get_managed_policies_for_role(role_name, iam_client)
-    detach_managed_policies_from_role(managed_policy_arns, role_name, iam_client)
+    managed_policy_arns = get_managed_policies_for_principal(
+        role_name, IAMType.ROLE, iam_client
+    )
+    detach_managed_policies_from_principal(
+        managed_policy_arns, role_name, IAMType.ROLE, iam_client
+    )
     iam_client.delete_role(RoleName=role_name)
 
 
@@ -98,6 +103,17 @@ def remediate_delete_role_policy(event: dict, iam_client, s3_client) -> None:
         )
 
 
+def remediate_create_user(event: dict, iam_client) -> None:
+    user_name = event["detail"]["requestParameters"]["userName"]
+    managed_policy_arns = get_managed_policies_for_principal(
+        user_name, IAMType.IAM_USER, iam_client
+    )
+    detach_managed_policies_from_principal(
+        managed_policy_arns, user_name, IAMType.IAM_USER, iam_client
+    )
+    iam_client.delete_user(UserName=user_name)
+
+
 def remediate(event: dict) -> None:
     iam_client = boto3.client("iam")
     s3_client = boto3.client("s3")
@@ -109,7 +125,9 @@ def remediate(event: dict) -> None:
         case EventName.ATTACH_ROLE_POLICY.value:
             role_name = event["detail"]["requestParameters"]["roleName"]
             policy_arn = event["detail"]["requestParameters"]["policyArn"]
-            detach_managed_policy_from_role(policy_arn, role_name, iam_client)
+            detach_managed_policy_from_principal(
+                policy_arn, role_name, IAMType.ROLE, iam_client
+            )
         case EventName.DETACH_ROLE_POLICY.value:
             remediate_detach_role_policy(event, iam_client, s3_client)
         case EventName.CREATE_POLICY_VERSION.value:
@@ -118,5 +136,7 @@ def remediate(event: dict) -> None:
             remediate_put_role_policy(event, iam_client)
         case EventName.DELETE_ROLE_POLICY.value:
             remediate_delete_role_policy(event, iam_client, s3_client)
+        case EventName.CREATE_USER.value:
+            remediate_create_user(event, iam_client)
 
     return None
