@@ -1,7 +1,10 @@
 import json
 import os
 
+import pytest
+
 from app.lambda_func.use_cases import (
+    EventName,
     IdentityType,
     extract_principal,
     extract_whitelisted_principals,
@@ -25,6 +28,7 @@ from .constants import (
     TEST_MANAGED_POLICY,
     TEST_MANAGED_POLICY_NAME,
     TEST_ROLE_NAME,
+    TEST_USER_NAME,
 )
 from .events import (
     ATTACH_ROLE_POLICY_EVENT,
@@ -37,8 +41,11 @@ from .events import (
 )
 from .utils import (
     create_iam_role,
+    create_iam_user,
     create_role_with_inline_policies,
     create_role_with_managed_policies,
+    create_user_with_inline_policies,
+    create_user_with_managed_policies,
     get_current_managed_policy,
     updated_managed_policy,
 )
@@ -143,17 +150,28 @@ def test_upload_inline_policies_to_s3(iam_client, s3_client):
     assert json.loads(response["Body"].read().decode("utf-8")) == TEST_INLINE_POLICY
 
 
-def test_remediate_create_role_with_managed_policy(iam_client):
+@pytest.mark.parametrize("principal_type", [IAMType.ROLE, IAMType.IAM_USER])
+def test_remediate_create_principal_with_managed_policy(iam_client, principal_type):
     # Update event to have the test role name
     updated_event = CREATE_ROLE_EVENT
-    updated_event["detail"]["requestParameters"]["roleName"] = TEST_ROLE_NAME
-
-    create_role_with_managed_policies(iam_client)
+    if principal_type == IAMType.ROLE:
+        updated_event["detail"]["requestParameters"]["roleName"] = TEST_ROLE_NAME
+        create_role_with_managed_policies(iam_client)
+    else:
+        updated_event["detail"]["eventName"] = EventName.CREATE_USER.value
+        updated_event["detail"]["requestParameters"]["userName"] = TEST_USER_NAME
+        create_user_with_managed_policies(iam_client)
 
     remediate(updated_event)
-    roles_response = iam_client.list_roles()
-    roles = roles_response["Roles"]
-    assert len(roles) == 0
+
+    if principal_type == IAMType.ROLE:
+        roles_response = iam_client.list_roles()
+        roles = roles_response["Roles"]
+        assert len(roles) == 0
+    else:
+        iam_user_response = iam_client.list_users()
+        users = iam_user_response["Users"]
+        assert len(users) == 0
 
 
 def test_remediate_update_role_by_adding_attach_managed_policy(iam_client):

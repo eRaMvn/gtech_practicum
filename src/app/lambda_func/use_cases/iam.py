@@ -1,7 +1,7 @@
 import hashlib
 import json
 from enum import Enum
-from typing import List
+from typing import List, Tuple
 
 from .constants import BUCKET_NAME
 from .s3 import upload_file_to_s3
@@ -62,10 +62,14 @@ def get_managed_policies_for_principal(
     return policy_arns
 
 
-def check_role_exists(role_name, iam_client):
+def check_principal_exists(principal_name: str, principal_type: IAMType, iam_client):
     try:
-        # Retrieve information about the role
-        iam_client.get_role(RoleName=role_name)
+        if principal_type == IAMType.ROLE:
+            # Retrieve information about the role
+            iam_client.get_role(RoleName=principal_name)
+        else:
+            # Retrieve information about the user
+            iam_client.get_user(UserName=principal_name)
         return True
     except iam_client.exceptions.NoSuchEntityException:
         return False
@@ -91,8 +95,13 @@ def check_managed_policy_exists(policy_arn, iam_client):
         return False
 
 
-def attach_managed_policy_to_role(policy_arn: str, role_name: str, iam_client):
-    iam_client.attach_role_policy(RoleName=role_name, PolicyArn=policy_arn)
+def attach_managed_policy_to_principal(
+    policy_arn: str, principal_name: str, principal_type: IAMType, iam_client
+):
+    if principal_type == IAMType.ROLE:
+        iam_client.attach_role_policy(RoleName=principal_name, PolicyArn=policy_arn)
+    else:
+        iam_client.attach_user_policy(UserName=principal_name, PolicyArn=policy_arn)
 
 
 def detach_managed_policy_from_principal(
@@ -114,7 +123,7 @@ def detach_managed_policies_from_principal(
         )
 
 
-def check_policy_attached_to_any_role(policy_arn, iam_client) -> bool:
+def check_policy_attached_to_any_role(policy_arn: str, iam_client) -> bool:
     # Retrieve the list of roles attached to the policy
     response = iam_client.list_entities_for_policy(
         PolicyArn=policy_arn, EntityFilter="Role"
@@ -128,7 +137,7 @@ def check_policy_attached_to_any_role(policy_arn, iam_client) -> bool:
     return False
 
 
-def update_managed_policy_to_certain_version(policy_arn, version_id, iam_client):
+def update_managed_policy_to_certain_version(policy_arn: str, version_id, iam_client):
     # Retrieve information about the previous version
     response = iam_client.get_policy_version(PolicyArn=policy_arn, VersionId=version_id)
     policy_document = response["PolicyVersion"]["Document"]
@@ -141,7 +150,7 @@ def update_managed_policy_to_certain_version(policy_arn, version_id, iam_client)
     )
 
 
-def get_previous_policy_version(policy_arn, iam_client) -> str | None:
+def get_previous_policy_version(policy_arn: str, iam_client) -> str | None:
     # Retrieve the list of versions for the policy
     response = iam_client.list_policy_versions(PolicyArn=policy_arn)
     versions = response["Versions"]
@@ -158,7 +167,7 @@ def get_previous_policy_version(policy_arn, iam_client) -> str | None:
     return None
 
 
-def get_role_policies(role_name, iam_client):
+def get_role_policies(role_name: str, iam_client) -> Tuple[List, List]:
     # Get managed policies attached to the role
     response_managed = iam_client.list_attached_role_policies(RoleName=role_name)
     managed_policies = response_managed["AttachedPolicies"]
@@ -181,7 +190,7 @@ def create_managed_policy(policy_name: str, policy_doc: dict, iam_client) -> str
 
 def write_inline_policy_to_s3(
     role_name, policy_name, iam_client, iam_policy_path_guide, s3_client
-):
+) -> None:
     response = iam_client.get_role_policy(RoleName=role_name, PolicyName=policy_name)
     policy_document = response["PolicyDocument"]
     upload_file_to_s3(
@@ -192,13 +201,13 @@ def write_inline_policy_to_s3(
     )
 
 
-def is_customer_managed_policy(policy_arn):
+def is_customer_managed_policy(policy_arn) -> bool:
     return policy_arn.startswith("arn:aws:iam::") and "policy/" in policy_arn
 
 
 def write_managed_policy_to_s3(
     policy_arn, iam_client, iam_policy_path_guide, s3_client
-):
+) -> None:
     if is_customer_managed_policy(policy_arn):
         response = iam_client.get_policy(PolicyArn=policy_arn)
         policy_version = response["Policy"]["DefaultVersionId"]
@@ -216,7 +225,7 @@ def write_managed_policy_to_s3(
 
 def write_managed_policies_list_to_s3(
     role_name, managed_policies, iam_policy_path_guide, s3_client
-):
+) -> None:
     upload_file_to_s3(
         json.dumps(managed_policies),
         BUCKET_NAME,

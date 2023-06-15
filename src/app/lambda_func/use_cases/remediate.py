@@ -7,10 +7,10 @@ from .constants import BUCKET_NAME
 from .iam import (
     IAMPolicy,
     IAMType,
-    attach_managed_policy_to_role,
+    attach_managed_policy_to_principal,
     check_managed_policy_exists,
     check_policy_attached_to_any_role,
-    check_role_exists,
+    check_principal_exists,
     create_managed_policy,
     detach_managed_policies_from_principal,
     detach_managed_policy_from_principal,
@@ -22,28 +22,47 @@ from .iam import (
 iam_policy_path_guide = IAMPolicy()
 
 
-def remediate_create_role(event: dict, iam_client) -> None:
-    role_name = event["detail"]["requestParameters"]["roleName"]
+def remediate_create_principal(
+    event: dict, principal_type: IAMType, iam_client
+) -> None:
+    if principal_type == IAMType.ROLE:
+        principal_name = event["detail"]["requestParameters"]["roleName"]
+    else:
+        principal_name = event["detail"]["requestParameters"]["userName"]
+
     managed_policy_arns = get_managed_policies_for_principal(
-        role_name, IAMType.ROLE, iam_client
+        principal_name, principal_type, iam_client
     )
     detach_managed_policies_from_principal(
-        managed_policy_arns, role_name, IAMType.ROLE, iam_client
+        managed_policy_arns, principal_name, principal_type, iam_client
     )
-    iam_client.delete_role(RoleName=role_name)
+    if principal_type == IAMType.ROLE:
+        iam_client.delete_role(RoleName=principal_name)
+    else:
+        iam_client.delete_user(UserName=principal_name)
 
 
-# TODO: Handle the case where the role does not exist
-def remediate_detach_role_policy(event: dict, iam_client, s3_client) -> None:
-    role_name = event["detail"]["requestParameters"]["roleName"]
+# TODO: Handle the case when the principal (user/role) does not exist
+def remediate_detach_principal_policy(
+    event: dict, principal_type: IAMType, iam_client, s3_client
+) -> None:
+    if principal_type == IAMType.ROLE:
+        principal_name = event["detail"]["requestParameters"]["roleName"]
+    else:
+        principal_name = event["detail"]["requestParameters"]["userName"]
+
     policy_arn = event["detail"]["requestParameters"]["policyArn"]
-    role_exists = check_role_exists(role_name, iam_client)
+    principal_exists = check_principal_exists(
+        principal_name, principal_type, iam_client
+    )
     policy_exists = check_managed_policy_exists(policy_arn, iam_client)
 
-    if role_exists and policy_exists:
-        attach_managed_policy_to_role(policy_arn, role_name, iam_client)
+    if principal_exists and policy_exists:
+        attach_managed_policy_to_principal(
+            policy_arn, principal_name, principal_type, iam_client
+        )
         return
-    elif role_exists and not policy_exists:
+    elif principal_exists and not policy_exists:
         managed_policy_name = policy_arn.split("/")[-1]
         policy_s3_path = iam_policy_path_guide.get_s3_managed_path(managed_policy_name)
 
@@ -54,7 +73,9 @@ def remediate_detach_role_policy(event: dict, iam_client, s3_client) -> None:
                 managed_policy_name, policy_dict, iam_client
             )
 
-            iam_client.attach_role_policy(RoleName=role_name, PolicyArn=new_policy_arn)
+            attach_managed_policy_to_principal(
+                new_policy_arn, principal_name, principal_type, iam_client
+            )
         except s3_client.exceptions.NoSuchKey:
             print(f"Policy {policy_s3_path} does not exist in S3 bucket {BUCKET_NAME}")
             pass
@@ -62,7 +83,7 @@ def remediate_detach_role_policy(event: dict, iam_client, s3_client) -> None:
         return
 
 
-def remediate_create_policy_version(event: dict, iam_client):
+def remediate_create_policy_version(event: dict, iam_client) -> None:
     policy_arn = event["detail"]["requestParameters"]["policyArn"]
 
     if not check_policy_attached_to_any_role(policy_arn, iam_client):
@@ -76,42 +97,49 @@ def remediate_create_policy_version(event: dict, iam_client):
 
 
 # TODO: Address the case when an inline policy is attached to the role is updated. How to detect that vs creating a new role with an inline policy?
-def remediate_put_role_policy(event: dict, iam_client) -> None:
-    role_name = event["detail"]["requestParameters"]["roleName"]
+def remediate_put_principal_policy(
+    event: dict, principal_type: IAMType, iam_client
+) -> None:
     policy_name = event["detail"]["requestParameters"]["policyName"]
+    if principal_type == IAMType.ROLE:
+        principal_name = event["detail"]["requestParameters"]["roleName"]
+        iam_client.delete_role_policy(RoleName=principal_name, PolicyName=policy_name)
+    else:
+        principal_name = event["detail"]["requestParameters"]["userName"]
+        iam_client.delete_user_policy(UserName=principal_name, PolicyName=policy_name)
 
-    iam_client.delete_role_policy(RoleName=role_name, PolicyName=policy_name)
 
-
-# TODO: Handle when role does not exist
-def remediate_delete_role_policy(event: dict, iam_client, s3_client) -> None:
-    role_name = event["detail"]["requestParameters"]["roleName"]
+# TODO: Handle when principal (user/role) does not exist
+def remediate_delete_principal_policy(
+    event: dict, iam_client, principal_type: IAMType, s3_client
+) -> None:
     inline_policy_name = event["detail"]["requestParameters"]["policyName"]
-    role_exists = check_role_exists(role_name, iam_client)
-    if role_exists:
-        role_inline_policy_s3_path = iam_policy_path_guide.get_s3_inline_path(
-            role_name, inline_policy_name
+    if principal_type == IAMType.ROLE:
+        principal_name = event["detail"]["requestParameters"]["roleName"]
+    else:
+        principal_name = event["detail"]["requestParameters"]["userName"]
+
+    principal_exists = check_principal_exists(
+        principal_name, principal_type, iam_client
+    )
+    if principal_exists:
+        inline_policy_s3_path = iam_policy_path_guide.get_s3_inline_path(
+            principal_name, inline_policy_name, type=principal_type
         )
-        response = s3_client.get_object(
-            Bucket=BUCKET_NAME, Key=role_inline_policy_s3_path
-        )
+        response = s3_client.get_object(Bucket=BUCKET_NAME, Key=inline_policy_s3_path)
         inline_policy_dict = json.loads(response["Body"].read().decode("utf-8"))
-        iam_client.put_role_policy(
-            RoleName=role_name,
-            PolicyName=inline_policy_name,
-            PolicyDocument=json.dumps(inline_policy_dict),
-        )
-
-
-def remediate_create_user(event: dict, iam_client) -> None:
-    user_name = event["detail"]["requestParameters"]["userName"]
-    managed_policy_arns = get_managed_policies_for_principal(
-        user_name, IAMType.IAM_USER, iam_client
-    )
-    detach_managed_policies_from_principal(
-        managed_policy_arns, user_name, IAMType.IAM_USER, iam_client
-    )
-    iam_client.delete_user(UserName=user_name)
+        if principal_type == IAMType.ROLE:
+            iam_client.put_role_policy(
+                RoleName=principal_name,
+                PolicyName=inline_policy_name,
+                PolicyDocument=json.dumps(inline_policy_dict),
+            )
+        else:
+            iam_client.put_user_policy(
+                UserName=principal_name,
+                PolicyName=inline_policy_name,
+                PolicyDocument=json.dumps(inline_policy_dict),
+            )
 
 
 def remediate(event: dict) -> None:
@@ -120,8 +148,9 @@ def remediate(event: dict) -> None:
     event_name = event["detail"]["eventName"]
 
     match event_name:
+        # Role events
         case EventName.CREATE_ROLE.value:
-            remediate_create_role(event, iam_client)
+            remediate_create_principal(event, IAMType.ROLE, iam_client)
         case EventName.ATTACH_ROLE_POLICY.value:
             role_name = event["detail"]["requestParameters"]["roleName"]
             policy_arn = event["detail"]["requestParameters"]["policyArn"]
@@ -129,14 +158,36 @@ def remediate(event: dict) -> None:
                 policy_arn, role_name, IAMType.ROLE, iam_client
             )
         case EventName.DETACH_ROLE_POLICY.value:
-            remediate_detach_role_policy(event, iam_client, s3_client)
+            remediate_detach_principal_policy(
+                event, IAMType.ROLE, iam_client, s3_client
+            )
         case EventName.CREATE_POLICY_VERSION.value:
             remediate_create_policy_version(event, iam_client)
         case EventName.PUT_ROLE_POLICY.value:
-            remediate_put_role_policy(event, iam_client)
+            remediate_put_principal_policy(event, IAMType.ROLE, iam_client)
         case EventName.DELETE_ROLE_POLICY.value:
-            remediate_delete_role_policy(event, iam_client, s3_client)
+            remediate_delete_principal_policy(
+                event, iam_client, IAMType.ROLE, s3_client
+            )
+
+        # User events
         case EventName.CREATE_USER.value:
-            remediate_create_user(event, iam_client)
+            remediate_create_principal(event, IAMType.IAM_USER, iam_client)
+        case EventName.ATTACH_USER_POLICY.value:
+            user_name = event["detail"]["requestParameters"]["userName"]
+            policy_arn = event["detail"]["requestParameters"]["policyArn"]
+            detach_managed_policy_from_principal(
+                policy_arn, user_name, IAMType.IAM_USER, iam_client
+            )
+        case EventName.DETACH_USER_POLICY.value:
+            remediate_detach_principal_policy(
+                event, IAMType.IAM_USER, iam_client, s3_client
+            )
+        case EventName.PUT_USER_POLICY.value:
+            remediate_put_principal_policy(event, IAMType.IAM_USER, iam_client)
+        case EventName.DELETE_USER_POLICY.value:
+            remediate_delete_principal_policy(
+                event, iam_client, IAMType.IAM_USER, s3_client
+            )
 
     return None

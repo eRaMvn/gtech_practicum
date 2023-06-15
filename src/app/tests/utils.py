@@ -5,6 +5,7 @@ from .constants import (
     TEST_INLINE_POLICY_NAME,
     TEST_POLICIES,
     TEST_ROLE_NAME,
+    TEST_USER_NAME,
 )
 
 
@@ -41,6 +42,27 @@ def create_role_with_inline_policies(iam_client):
     create_iam_role(iam_client)
     iam_client.put_role_policy(
         RoleName=TEST_ROLE_NAME,
+        PolicyName=TEST_INLINE_POLICY_NAME,
+        PolicyDocument=json.dumps(TEST_INLINE_POLICY),
+    )
+
+
+def create_iam_user(iam_client):
+    iam_client.create_user(UserName=TEST_USER_NAME)
+
+
+def create_user_with_managed_policies(iam_client):
+    create_iam_user(iam_client)
+
+    # Attach managed policies to the role
+    for policy_arn in TEST_POLICIES:
+        iam_client.attach_user_policy(UserName=TEST_USER_NAME, PolicyArn=policy_arn)
+
+
+def create_user_with_inline_policies(iam_client):
+    create_iam_user(iam_client)
+    iam_client.put_user_policy(
+        UserName=TEST_USER_NAME,
         PolicyName=TEST_INLINE_POLICY_NAME,
         PolicyDocument=json.dumps(TEST_INLINE_POLICY),
     )

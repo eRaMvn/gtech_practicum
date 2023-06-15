@@ -1,4 +1,5 @@
 TEST_ROLE_NAME = "test_iam_keeper_role"
+TEST_USER_NAME = "test_iam_keeper_user"
 TEST_POLICIES = [
     "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
     "arn:aws:iam::aws:policy/CloudWatchReadOnlyAccess",
