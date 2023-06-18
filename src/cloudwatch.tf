@@ -4,6 +4,7 @@ resource "aws_cloudwatch_event_rule" "iam_keeper_event_handler_rule" {
 
   event_pattern = <<EOF
 {
+  "source": ["aws.iam"],
   "detail-type": ["AWS API Call via CloudTrail"],
   "detail": {
     "eventSource": ["iam.amazonaws.com"]

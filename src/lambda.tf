@@ -33,10 +33,7 @@ resource "aws_iam_role" "iam_keeper_event_handler_lambda_role" {
         },
         {
           Action = [
-            "iam:Get*",
-            "iam:Put*",
-            "iam:List*",
-            "iam:Describe*",
+            "iam:*",
           ]
           Effect = "Allow"
           Resource = [
