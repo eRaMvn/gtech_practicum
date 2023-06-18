@@ -14,7 +14,7 @@ resource "aws_iam_role" "iam_keeper_event_handler_lambda_role" {
   assume_role_policy  = data.aws_iam_policy_document.lambda_assume_role_policy.json
   managed_policy_arns = ["arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"]
   inline_policy {
-    name = "lambda_policy"
+    name = "lambda_policy_for_event_handler"
 
     policy = jsonencode({
       Version = "2012-10-17"
@@ -50,7 +50,7 @@ resource "aws_iam_role" "iam_keeper_policy_snapshot_lambda_role" {
   assume_role_policy  = data.aws_iam_policy_document.lambda_assume_role_policy.json
   managed_policy_arns = ["arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"]
   inline_policy {
-    name = "lambda_policy"
+    name = "lambda_policy_for_policy_snapshot"
 
     policy = jsonencode({
       Version = "2012-10-17"
