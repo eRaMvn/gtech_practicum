@@ -123,15 +123,20 @@ def detach_managed_policies_from_principal(
         )
 
 
-def check_policy_attached_to_any_role(policy_arn: str, iam_client) -> bool:
+def check_policy_attached_to_any_principal(policy_arn: str, iam_client) -> bool:
     # Retrieve the list of roles attached to the policy
     response = iam_client.list_entities_for_policy(
         PolicyArn=policy_arn, EntityFilter="Role"
     )
     attached_roles = response["PolicyRoles"]
 
+    response = iam_client.list_entities_for_policy(
+        PolicyArn=policy_arn, EntityFilter="User"
+    )
+    attached_users = response["PolicyUsers"]
+
     # Check if the policy is attached to any role
-    if attached_roles:
+    if attached_roles or attached_users:
         return True
 
     return False

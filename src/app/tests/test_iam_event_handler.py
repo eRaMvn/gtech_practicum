@@ -63,8 +63,8 @@ def test_extract_principal():
 
 def test_extract_white_listed_principals(monkeypatch):
     whitelisted_users, whitelisted_roles = extract_whitelisted_principals()
-    assert whitelisted_users == set(["thor", "odin"])
-    assert whitelisted_roles == set(["thor", "odin"])
+    assert whitelisted_users == set(["thor", "odin", "thien"])
+    assert whitelisted_roles == set(["thor", "odin", "terraform_cloud_role"])
 
     # Define the mock environment variable
     mock_env = {WHITELISTED_IAM_USERS_VARIABLE: "zeus|athena"}
@@ -74,7 +74,7 @@ def test_extract_white_listed_principals(monkeypatch):
 
     whitelisted_users, whitelisted_roles = extract_whitelisted_principals()
     assert whitelisted_users == set(["zeus", "athena"])
-    assert whitelisted_roles == set(["thor", "odin"])
+    assert whitelisted_roles == set(["thor", "odin", "terraform_cloud_role"])
 
 
 def test_is_whitelisted_principal():
@@ -197,13 +197,11 @@ def test_remediate_update_principal_by_adding_attach_managed_policy(
         mock_iam_client.attach_role_policy(
             RoleName=TEST_ROLE_NAME, PolicyArn=test_policy
         )
-        managed_policy_arns = get_managed_policies_for_principal(
-            TEST_ROLE_NAME, principal_type, mock_iam_client
-        )
         principal_name = TEST_ROLE_NAME
     else:
         updated_event["detail"]["eventName"] = EventName.ATTACH_USER_POLICY.value
         updated_event["detail"]["requestParameters"]["userName"] = TEST_USER_NAME
+        create_iam_user(mock_iam_client)
 
         mock_iam_client.attach_user_policy(
             UserName=TEST_USER_NAME, PolicyArn=test_policy
@@ -253,19 +251,27 @@ def test_remediate_update_principal_by_detaching_managed_policy(
     assert len(managed_policy_arns) == 3
 
 
-def test_remediate_update_role_by_deleting_an_user_managed_policy(
-    mock_iam_client, mock_s3_client
+@pytest.mark.parametrize("principal_type", [IAMType.ROLE, IAMType.IAM_USER])
+def test_remediate_update_principal_by_deleting_an_user_managed_policy(
+    mock_iam_client, mock_s3_client, principal_type
 ):
     updated_event = DETACH_ROLE_POLICY_EVENT
     test_policy = f"arn:aws:iam::123456789012:policy/{TEST_MANAGED_POLICY_NAME}"
-    updated_event["detail"]["requestParameters"]["roleName"] = TEST_ROLE_NAME
     updated_event["detail"]["requestParameters"]["policyArn"] = test_policy
-
     iam_guide = IAMPolicy()
 
-    create_iam_role(mock_iam_client)
+    if principal_type == IAMType.ROLE:
+        updated_event["detail"]["requestParameters"]["roleName"] = TEST_ROLE_NAME
+        create_iam_role(mock_iam_client)
+        principal_name = TEST_ROLE_NAME
+    else:
+        updated_event["detail"]["eventName"] = EventName.DETACH_USER_POLICY.value
+        updated_event["detail"]["requestParameters"]["userName"] = TEST_USER_NAME
+        create_iam_user(mock_iam_client)
+        principal_name = TEST_USER_NAME
+
     managed_policy_arns = get_managed_policies_for_principal(
-        TEST_ROLE_NAME, IAMType.ROLE, mock_iam_client
+        principal_name, principal_type, mock_iam_client
     )
     assert len(managed_policy_arns) == 0
 
@@ -279,23 +285,33 @@ def test_remediate_update_role_by_deleting_an_user_managed_policy(
     )
     remediate(updated_event)
     managed_policy_arns = get_managed_policies_for_principal(
-        TEST_ROLE_NAME, IAMType.ROLE, mock_iam_client
+        principal_name, principal_type, mock_iam_client
     )
     assert len(managed_policy_arns) == 1
 
 
-def test_remediate_update_managed_policy_assigned_to_a_role(mock_iam_client):
+@pytest.mark.parametrize("principal_type", [IAMType.ROLE, IAMType.IAM_USER])
+def test_remediate_update_managed_policy_assigned_to_a_principal(
+    mock_iam_client, principal_type
+):
     updated_event = CREATE_POLICY_VERSION_EVENT
     test_policy_arn = create_managed_policy(
         TEST_MANAGED_POLICY_NAME, TEST_MANAGED_POLICY, mock_iam_client
     )
-    updated_event["detail"]["requestParameters"]["roleName"] = TEST_ROLE_NAME
     updated_event["detail"]["requestParameters"]["policyArn"] = test_policy_arn
 
-    create_iam_role(mock_iam_client)
-    mock_iam_client.attach_role_policy(
-        RoleName=TEST_ROLE_NAME, PolicyArn=test_policy_arn
-    )
+    if principal_type == IAMType.ROLE:
+        updated_event["detail"]["requestParameters"]["roleName"] = TEST_ROLE_NAME
+        create_iam_role(mock_iam_client)
+        mock_iam_client.attach_role_policy(
+            RoleName=TEST_ROLE_NAME, PolicyArn=test_policy_arn
+        )
+    else:
+        updated_event["detail"]["requestParameters"]["userName"] = TEST_USER_NAME
+        create_iam_user(mock_iam_client)
+        mock_iam_client.attach_user_policy(
+            UserName=TEST_USER_NAME, PolicyArn=test_policy_arn
+        )
 
     updated_managed_policy(mock_iam_client, test_policy_arn)
     current_managed_policy = get_current_managed_policy(
@@ -310,36 +326,61 @@ def test_remediate_update_managed_policy_assigned_to_a_role(mock_iam_client):
     assert len(current_managed_policy["Statement"][0]["Action"]) == 2
 
 
-def test_remediate_create_a_role_with_inline_policy(mock_iam_client):
+@pytest.mark.parametrize("principal_type", [IAMType.ROLE, IAMType.IAM_USER])
+def test_remediate_create_a_principal_with_inline_policy(
+    mock_iam_client, principal_type
+):
     updated_event = PUT_ROLE_POLICY_EVENT
-    create_role_with_inline_policies(mock_iam_client)
 
-    updated_event["detail"]["requestParameters"]["roleName"] = TEST_ROLE_NAME
     updated_event["detail"]["requestParameters"]["policyName"] = TEST_INLINE_POLICY_NAME
 
-    response = mock_iam_client.list_role_policies(RoleName=TEST_ROLE_NAME)
+    if principal_type == IAMType.ROLE:
+        updated_event["detail"]["requestParameters"]["roleName"] = TEST_ROLE_NAME
+        create_role_with_inline_policies(mock_iam_client)
+        response = mock_iam_client.list_role_policies(RoleName=TEST_ROLE_NAME)
+    else:
+        updated_event["detail"]["eventName"] = EventName.PUT_USER_POLICY.value
+        updated_event["detail"]["requestParameters"]["userName"] = TEST_USER_NAME
+        create_user_with_inline_policies(mock_iam_client)
+        response = mock_iam_client.list_user_policies(UserName=TEST_USER_NAME)
+
     assert len(response["PolicyNames"]) == 1
 
     remediate(updated_event)
 
-    response = mock_iam_client.list_role_policies(RoleName=TEST_ROLE_NAME)
+    if principal_type == IAMType.ROLE:
+        response = mock_iam_client.list_role_policies(RoleName=TEST_ROLE_NAME)
+    else:
+        response = mock_iam_client.list_user_policies(UserName=TEST_USER_NAME)
+
     assert len(response["PolicyNames"]) == 0
 
 
-def test_remediate_deleting_inline_policy_in_role(mock_iam_client, mock_s3_client):
+@pytest.mark.parametrize("principal_type", [IAMType.ROLE, IAMType.IAM_USER])
+def test_remediate_deleting_inline_policy_in_role(
+    mock_iam_client, mock_s3_client, principal_type
+):
     updated_event = DELETE_ROLE_POLICY_EVENT
-    updated_event["detail"]["requestParameters"]["roleName"] = TEST_ROLE_NAME
+    iam_guide = IAMPolicy()
     updated_event["detail"]["requestParameters"]["policyName"] = TEST_INLINE_POLICY_NAME
 
-    iam_guide = IAMPolicy()
+    if principal_type == IAMType.ROLE:
+        updated_event["detail"]["requestParameters"]["roleName"] = TEST_ROLE_NAME
+        create_iam_role(mock_iam_client)
+        principal_name = TEST_ROLE_NAME
+        response = mock_iam_client.list_role_policies(RoleName=TEST_ROLE_NAME)
+    else:
+        updated_event["detail"]["eventName"] = EventName.DELETE_USER_POLICY.value
+        updated_event["detail"]["requestParameters"]["userName"] = TEST_USER_NAME
+        principal_name = TEST_USER_NAME
+        create_iam_user(mock_iam_client)
+        response = mock_iam_client.list_user_policies(UserName=TEST_USER_NAME)
 
-    create_iam_role(mock_iam_client)
-    response = mock_iam_client.list_role_policies(RoleName=TEST_ROLE_NAME)
     assert len(response["PolicyNames"]) == 0
 
     mock_s3_client.create_bucket(Bucket=BUCKET_NAME)
     inline_policy_s3_path = iam_guide.get_s3_inline_path(
-        TEST_ROLE_NAME, TEST_INLINE_POLICY_NAME
+        principal_name, TEST_INLINE_POLICY_NAME, principal_type
     )
     upload_file_to_s3(
         json.dumps(TEST_INLINE_POLICY),
@@ -350,5 +391,8 @@ def test_remediate_deleting_inline_policy_in_role(mock_iam_client, mock_s3_clien
 
     remediate(updated_event)
 
-    response = mock_iam_client.list_role_policies(RoleName=TEST_ROLE_NAME)
+    if principal_type == IAMType.ROLE:
+        response = mock_iam_client.list_role_policies(RoleName=TEST_ROLE_NAME)
+    else:
+        response = mock_iam_client.list_user_policies(UserName=TEST_USER_NAME)
     assert len(response["PolicyNames"]) == 1

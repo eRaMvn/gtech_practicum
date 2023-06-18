@@ -9,7 +9,7 @@ from .iam import (
     IAMType,
     attach_managed_policy_to_principal,
     check_managed_policy_exists,
-    check_policy_attached_to_any_role,
+    check_policy_attached_to_any_principal,
     check_principal_exists,
     create_managed_policy,
     detach_managed_policies_from_principal,
@@ -33,9 +33,10 @@ def remediate_create_principal(
     managed_policy_arns = get_managed_policies_for_principal(
         principal_name, principal_type, iam_client
     )
-    detach_managed_policies_from_principal(
-        managed_policy_arns, principal_name, principal_type, iam_client
-    )
+    if managed_policy_arns:
+        detach_managed_policies_from_principal(
+            managed_policy_arns, principal_name, principal_type, iam_client
+        )
     if principal_type == IAMType.ROLE:
         iam_client.delete_role(RoleName=principal_name)
     else:
@@ -86,7 +87,7 @@ def remediate_detach_principal_policy(
 def remediate_create_policy_version(event: dict, iam_client) -> None:
     policy_arn = event["detail"]["requestParameters"]["policyArn"]
 
-    if not check_policy_attached_to_any_role(policy_arn, iam_client):
+    if not check_policy_attached_to_any_principal(policy_arn, iam_client):
         return
 
     previous_version_id = get_previous_policy_version(policy_arn, iam_client)
