@@ -106,7 +106,7 @@ def test_upload_managed_policies_list_to_s3(mock_iam_client, mock_s3_client):
         TEST_ROLE_NAME
     )
 
-    record(updated_event)
+    record(updated_event, IAMType.ROLE)
     response = mock_s3_client.get_object(
         Bucket=BUCKET_NAME, Key=managed_policies_list_path
     )
@@ -133,7 +133,7 @@ def test_upload_managed_policies_to_s3(mock_iam_client, mock_s3_client):
     mock_s3_client.create_bucket(Bucket=BUCKET_NAME)
     s3_path = iam_guide.get_s3_managed_path(test_policy_name)
 
-    record(updated_event)
+    record(updated_event, IAMType.ROLE)
     response = mock_s3_client.get_object(Bucket=BUCKET_NAME, Key=s3_path)
 
     assert json.loads(response["Body"].read().decode("utf-8")) == TEST_MANAGED_POLICY
@@ -150,7 +150,7 @@ def test_upload_inline_policies_to_s3(mock_iam_client, mock_s3_client):
     mock_s3_client.create_bucket(Bucket=BUCKET_NAME)
     s3_path = iam_guide.get_s3_inline_path(TEST_ROLE_NAME, TEST_INLINE_POLICY_NAME)
 
-    record(updated_event)
+    record(updated_event, IAMType.ROLE)
     response = mock_s3_client.get_object(Bucket=BUCKET_NAME, Key=s3_path)
 
     assert json.loads(response["Body"].read().decode("utf-8")) == TEST_INLINE_POLICY

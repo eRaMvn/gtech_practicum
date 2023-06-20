@@ -172,13 +172,27 @@ def get_previous_policy_version(policy_arn: str, iam_client) -> str | None:
     return None
 
 
-def get_role_policies(role_name: str, iam_client) -> Tuple[List, List]:
-    # Get managed policies attached to the role
-    response_managed = iam_client.list_attached_role_policies(RoleName=role_name)
-    managed_policies = response_managed["AttachedPolicies"]
+def get_principal_policies(
+    principal_name: str, principal_type: IAMType, iam_client
+) -> Tuple[List, List]:
+    if principal_type == IAMType.ROLE:
+        # Get managed policies attached to the role
+        response_managed = iam_client.list_attached_role_policies(
+            RoleName=principal_name
+        )
 
-    # Get inline policies attached to the role
-    response_inline = iam_client.list_role_policies(RoleName=role_name)
+        # Get inline policies attached to the role
+        response_inline = iam_client.list_role_policies(RoleName=principal_name)
+    else:
+        # Get managed policies attached to the user
+        response_managed = iam_client.list_attached_user_policies(
+            UserName=principal_name
+        )
+
+        # Get inline policies attached to the user
+        response_inline = iam_client.list_user_policies(UserName=principal_name)
+
+    managed_policies = response_managed["AttachedPolicies"]
     inline_policies = response_inline["PolicyNames"]
 
     return managed_policies, inline_policies
@@ -194,14 +208,29 @@ def create_managed_policy(policy_name: str, policy_doc: dict, iam_client) -> str
 
 
 def write_inline_policy_to_s3(
-    role_name, policy_name, iam_client, iam_policy_path_guide, s3_client
+    principal_name,
+    principal_type,
+    policy_name,
+    iam_client,
+    iam_policy_path_guide,
+    s3_client,
 ) -> None:
-    response = iam_client.get_role_policy(RoleName=role_name, PolicyName=policy_name)
+    if principal_type == IAMType.ROLE:
+        response = iam_client.get_role_policy(
+            RoleName=principal_name, PolicyName=policy_name
+        )
+    else:
+        response = iam_client.get_user_policy(
+            UserName=principal_name, PolicyName=policy_name
+        )
+
     policy_document = response["PolicyDocument"]
     upload_file_to_s3(
         json.dumps(policy_document),
         BUCKET_NAME,
-        iam_policy_path_guide.get_s3_inline_path(role_name, policy_name),
+        iam_policy_path_guide.get_s3_inline_path(
+            principal_name, policy_name, principal_type
+        ),
         s3_client,
     )
 
@@ -229,11 +258,13 @@ def write_managed_policy_to_s3(
 
 
 def write_managed_policies_list_to_s3(
-    role_name, managed_policies, iam_policy_path_guide, s3_client
+    principal_name, principal_type, managed_policies, iam_policy_path_guide, s3_client
 ) -> None:
     upload_file_to_s3(
         json.dumps(managed_policies),
         BUCKET_NAME,
-        iam_policy_path_guide.get_s3_managed_policies_list_path(role_name),
+        iam_policy_path_guide.get_s3_managed_policies_list_path(
+            principal_name, principal_type
+        ),
         s3_client,
     )
