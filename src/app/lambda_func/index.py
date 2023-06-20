@@ -14,14 +14,8 @@ def iam_event_handler(event, context):
     principal_type, principal_name = extract_principal(event)
     whitelisted_users, whitelisted_roles = extract_whitelisted_principals()
 
-    print(f"whitelisted_users: {whitelisted_users}")
-    print(f"whitelisted_roles: {whitelisted_roles}")
-
-    print(f"Principal type: {principal_type}")
-    print(f"Principal name: {principal_name}")
-
     if is_whitelisted_principal(
-        principal_type, principal_name, whitelisted_users, whitelisted_roles
+        principal_name, principal_type, whitelisted_users, whitelisted_roles
     ):
         print(f"Principal {principal_name} is whitelisted")
         if principal_type == IdentityType.ASSUMED_ROLE:

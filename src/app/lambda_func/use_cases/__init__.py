@@ -66,6 +66,12 @@ def extract_whitelisted_principals() -> Tuple[Set[str], Set[str]]:
 def is_whitelisted_principal(
     principal_name, principal_type, whitelisted_users, whitelisted_roles
 ) -> bool:
+    print("------------------------------------------------")
+    print(f"whitelisted_users: {whitelisted_users}")
+    print(f"whitelisted_roles: {whitelisted_roles}")
+    print(f"principal_name: {principal_name}")
+    print(f"principal_type: {principal_type}")
+
     if principal_type == IdentityType.ASSUMED_ROLE:
         return principal_name in whitelisted_roles
     elif principal_type == IdentityType.IAM_USER:

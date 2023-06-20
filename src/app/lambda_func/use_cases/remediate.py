@@ -14,8 +14,10 @@ from .iam import (
     create_managed_policy,
     detach_managed_policies_from_principal,
     detach_managed_policy_from_principal,
+    get_instance_profiles_attached_to_role,
     get_managed_policies_for_principal,
     get_previous_policy_version,
+    remove_instance_profiles_from_role,
     update_managed_policy_to_certain_version,
 )
 
@@ -41,6 +43,17 @@ def remediate_create_principal(
             managed_policy_arns, principal_name, principal_type, iam_client
         )
     if principal_type == IAMType.ROLE:
+        instance_profiles = get_instance_profiles_attached_to_role(
+            principal_name, iam_client
+        )
+        if instance_profiles:
+            print(
+                f"Found some instance profiles attached to {principal_name}. Proceeding to detach them!"
+            )
+            remove_instance_profiles_from_role(
+                principal_name, instance_profiles, iam_client
+            )
+
         print(f"Deleting role {principal_name}!")
         iam_client.delete_role(RoleName=principal_name)
     else:

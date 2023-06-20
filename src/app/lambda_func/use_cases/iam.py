@@ -207,6 +207,23 @@ def create_managed_policy(policy_name: str, policy_doc: dict, iam_client) -> str
     return response["Policy"]["Arn"]
 
 
+def get_instance_profiles_attached_to_role(role_name: str, iam_client) -> List:
+    response = iam_client.list_instance_profiles_for_role(RoleName=role_name)
+    instance_profiles = response["InstanceProfiles"]
+
+    return instance_profiles
+
+
+def remove_instance_profiles_from_role(
+    role_name: str, instance_profiles: List[dict], iam_client
+) -> None:
+    for instance_profile in instance_profiles:
+        instance_profile_name = instance_profile["InstanceProfileName"]
+        iam_client.remove_role_from_instance_profile(
+            RoleName=role_name, InstanceProfileName=instance_profile_name
+        )
+
+
 def write_inline_policy_to_s3(
     principal_name,
     principal_type,
