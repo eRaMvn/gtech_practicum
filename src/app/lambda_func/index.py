@@ -14,6 +14,9 @@ def iam_event_handler(event, context):
     principal_type, principal_name = extract_principal(event)
     whitelisted_users, whitelisted_roles = extract_whitelisted_principals()
 
+    print(f"whitelisted_users: {whitelisted_users}")
+    print(f"whitelisted_roles: {whitelisted_roles}")
+
     print(f"Principal type: {principal_type}")
     print(f"Principal name: {principal_name}")
 
