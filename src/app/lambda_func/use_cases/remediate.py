@@ -34,13 +34,20 @@ def remediate_create_principal(
         principal_name, principal_type, iam_client
     )
     if managed_policy_arns:
+        print(
+            f"Found some managed policies attached to {principal_name}. Proceeding to detach them!"
+        )
         detach_managed_policies_from_principal(
             managed_policy_arns, principal_name, principal_type, iam_client
         )
     if principal_type == IAMType.ROLE:
+        print(f"Deleting role {principal_name}!")
         iam_client.delete_role(RoleName=principal_name)
     else:
+        print(f"Deleting user {principal_name}!")
         iam_client.delete_user(UserName=principal_name)
+
+    print(f"Successfully deleted {principal_name}!")
 
 
 # TODO: Handle the case when the principal (user/role) does not exist
@@ -59,11 +66,16 @@ def remediate_detach_principal_policy(
     policy_exists = check_managed_policy_exists(policy_arn, iam_client)
 
     if principal_exists and policy_exists:
+        print(
+            "Both principal and policy exist. Proceeding to attach policy to principal!"
+        )
         attach_managed_policy_to_principal(
             policy_arn, principal_name, principal_type, iam_client
         )
-        return
     elif principal_exists and not policy_exists:
+        print(
+            "Only principal exists. Proceeding to retrieve managed policies from S3 bucket!"
+        )
         managed_policy_name = policy_arn.split("/")[-1]
         policy_s3_path = iam_policy_path_guide.get_s3_managed_path(managed_policy_name)
 
@@ -74,6 +86,9 @@ def remediate_detach_principal_policy(
                 managed_policy_name, policy_dict, iam_client
             )
 
+            print(
+                "Found managed policy in S3 bucket. Proceeding to attach it to principal!"
+            )
             attach_managed_policy_to_principal(
                 new_policy_arn, principal_name, principal_type, iam_client
             )
@@ -81,7 +96,7 @@ def remediate_detach_principal_policy(
             print(f"Policy {policy_s3_path} does not exist in S3 bucket {BUCKET_NAME}")
             pass
 
-        return
+    print("Successfully attached policy to principal!")
 
 
 def remediate_create_policy_version(event: dict, iam_client) -> None:
@@ -90,11 +105,16 @@ def remediate_create_policy_version(event: dict, iam_client) -> None:
     if not check_policy_attached_to_any_principal(policy_arn, iam_client):
         return
 
+    print(
+        "The policy is attached to some principal. Proceeding to revert to previous version!"
+    )
     previous_version_id = get_previous_policy_version(policy_arn, iam_client)
     if previous_version_id:
+        print("Found previous version. Proceeding to revert to it!")
         update_managed_policy_to_certain_version(
             policy_arn, previous_version_id, iam_client
         )
+        print("Successfully reverted to previous version!")
 
 
 # TODO: Address the case when an inline policy is attached to the role is updated. How to detect that vs creating a new role with an inline policy?
@@ -108,6 +128,8 @@ def remediate_put_principal_policy(
     else:
         principal_name = event["detail"]["requestParameters"]["userName"]
         iam_client.delete_user_policy(UserName=principal_name, PolicyName=policy_name)
+
+    print(f"Successfully deleted inline policy {policy_name} from {principal_name}!")
 
 
 # TODO: Handle when principal (user/role) does not exist
@@ -124,23 +146,37 @@ def remediate_delete_principal_policy(
         principal_name, principal_type, iam_client
     )
     if principal_exists:
+        print(
+            "Principal exists. Proceeding to retrieve inline policies from S3 bucket!"
+        )
         inline_policy_s3_path = iam_policy_path_guide.get_s3_inline_path(
             principal_name, inline_policy_name, type=principal_type
         )
-        response = s3_client.get_object(Bucket=BUCKET_NAME, Key=inline_policy_s3_path)
-        inline_policy_dict = json.loads(response["Body"].read().decode("utf-8"))
-        if principal_type == IAMType.ROLE:
-            iam_client.put_role_policy(
-                RoleName=principal_name,
-                PolicyName=inline_policy_name,
-                PolicyDocument=json.dumps(inline_policy_dict),
+        try:
+            response = s3_client.get_object(
+                Bucket=BUCKET_NAME, Key=inline_policy_s3_path
             )
-        else:
-            iam_client.put_user_policy(
-                UserName=principal_name,
-                PolicyName=inline_policy_name,
-                PolicyDocument=json.dumps(inline_policy_dict),
+            inline_policy_dict = json.loads(response["Body"].read().decode("utf-8"))
+            if principal_type == IAMType.ROLE:
+                iam_client.put_role_policy(
+                    RoleName=principal_name,
+                    PolicyName=inline_policy_name,
+                    PolicyDocument=json.dumps(inline_policy_dict),
+                )
+            else:
+                iam_client.put_user_policy(
+                    UserName=principal_name,
+                    PolicyName=inline_policy_name,
+                    PolicyDocument=json.dumps(inline_policy_dict),
+                )
+            print(
+                f"Found inline policy in S3 bucket. Successfully attached it to principal {principal_name}!"
             )
+        except s3_client.exceptions.NoSuchKey:
+            print(
+                f"Policy {inline_policy_s3_path} does not exist in S3 bucket {BUCKET_NAME}"
+            )
+            pass
 
 
 def remediate(event: dict) -> None:
@@ -148,6 +184,7 @@ def remediate(event: dict) -> None:
     s3_client = boto3.client("s3")
     event_name = event["detail"]["eventName"]
 
+    print(f"Remediating {event_name}")
     match event_name:
         # Role events
         case EventName.CREATE_ROLE.value:
