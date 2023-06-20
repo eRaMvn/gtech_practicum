@@ -1,11 +1,9 @@
 import boto3
 from use_cases import (
-    IdentityType,
     extract_principal,
     extract_whitelisted_principals,
     is_whitelisted_principal,
 )
-from use_cases.iam import IAMType
 from use_cases.record import record, record_all_policies_for_users_and_roles
 from use_cases.remediate import remediate
 
@@ -18,10 +16,7 @@ def iam_event_handler(event, context):
         principal_name, principal_type, whitelisted_users, whitelisted_roles
     ):
         print(f"Principal {principal_name} is whitelisted")
-        if principal_type == IdentityType.ASSUMED_ROLE:
-            record(event, IAMType.ROLE)
-        else:
-            record(event, IAMType.IAM_USER)
+        record(event)
     else:
         print(f"Principal {principal_name} is NOT whitelisted")
         remediate(event)

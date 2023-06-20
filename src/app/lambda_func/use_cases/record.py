@@ -60,7 +60,7 @@ def record_all_policies_for_users_and_roles(iam_client, s3_client) -> None:
         )
 
 
-def record(event: dict, principal_type: IAMType) -> None:
+def record(event: dict) -> None:
     iam_client = boto3.client("iam")
     s3_client = boto3.client("s3")
     event_name = event["detail"]["eventName"]
@@ -74,10 +74,14 @@ def record(event: dict, principal_type: IAMType) -> None:
 
     if event_name in all_role_events:
         print(f"Start recording process for event: {event_name}")
-        if principal_type == IAMType.ROLE:
-            principal_name = event["detail"]["requestParameters"]["roleName"]
+
+        event_request_params = event["detail"]["requestParameters"]
+        if "roleName" in event["detail"]["requestParameters"]:
+            principal_name = event_request_params["roleName"]
+            principal_type = IAMType.ROLE
         else:
-            principal_name = event["detail"]["requestParameters"]["userName"]
+            principal_name = event_request_params["userName"]
+            principal_type = IAMType.IAM_USER
 
         record_all_policies_for_principal(
             principal_name, principal_type, iam_client, s3_client
