@@ -4,7 +4,7 @@ variable "s3_bucket_name" {
 }
 variable "image_tag" {
   type    = string
-  default = "3ff8cc91d6ab702dfea426c2da76f543682eeab6"
+  default = "85e509bc5679ea5fe93ad63e35c19d271e2234bd"
 }
 
 variable "account_id" {

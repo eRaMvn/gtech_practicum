@@ -88,7 +88,7 @@ resource "aws_lambda_function" "iam_event_handler_func" {
   role          = aws_iam_role.iam_keeper_event_handler_lambda_role.arn
   image_uri     = "${var.account_id}.dkr.ecr.us-east-1.amazonaws.com/iam_keeper_event_handler:${var.image_tag}"
   package_type  = "Image"
-  memory_size   = 256
+  memory_size   = 128
   timeout       = 300
   environment {
     variables = {
@@ -103,7 +103,7 @@ resource "aws_lambda_function" "iam_policy_snapshot_func" {
   role          = aws_iam_role.iam_keeper_policy_snapshot_lambda_role.arn
   image_uri     = "${var.account_id}.dkr.ecr.us-east-1.amazonaws.com/iam_keeper_policy_snapshot:${var.image_tag}"
   package_type  = "Image"
-  memory_size   = 256
+  memory_size   = 128
   timeout       = 300
   depends_on    = [aws_iam_role.iam_keeper_policy_snapshot_lambda_role]
 }
