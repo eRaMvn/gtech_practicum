@@ -10,7 +10,7 @@ data "aws_iam_policy_document" "lambda_assume_role_policy" {
 }
 
 resource "aws_iam_role" "iam_keeper_event_handler_lambda_role" {
-  name                = "iam_keeper_event_handler_role"
+  name                = var.iam_keeper_event_handler_role_name
   assume_role_policy  = data.aws_iam_policy_document.lambda_assume_role_policy.json
   managed_policy_arns = ["arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"]
   inline_policy {
@@ -46,7 +46,7 @@ resource "aws_iam_role" "iam_keeper_event_handler_lambda_role" {
 }
 
 resource "aws_iam_role" "iam_keeper_policy_snapshot_lambda_role" {
-  name                = "iam_keeper_policy_snapshot_role"
+  name                = var.iam_keeper_policy_snapshot_role_name
   assume_role_policy  = data.aws_iam_policy_document.lambda_assume_role_policy.json
   managed_policy_arns = ["arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"]
   inline_policy {
@@ -90,7 +90,12 @@ resource "aws_lambda_function" "iam_event_handler_func" {
   package_type  = "Image"
   memory_size   = 256
   timeout       = 300
-  depends_on    = [aws_iam_role.iam_keeper_event_handler_lambda_role]
+  environment {
+    variables = {
+      WHITELISTED_IAM_ROLES = "thor|odin|terraform_cloud_role|${var.iam_keeper_event_handler_role_name}|${var.iam_keeper_policy_snapshot_role_name}"
+    }
+  }
+  depends_on = [aws_iam_role.iam_keeper_event_handler_lambda_role]
 }
 
 resource "aws_lambda_function" "iam_policy_snapshot_func" {

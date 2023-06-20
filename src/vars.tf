@@ -11,3 +11,13 @@ variable "account_id" {
   type    = string
   default = "014824332634"
 }
+
+variable "iam_keeper_event_handler_role_name" {
+  type    = string
+  default = "iam_keeper_event_handler_role"
+}
+
+variable "iam_keeper_policy_snapshot_role_name" {
+  type    = string
+  default = "iam_keeper_policy_snapshot_role"
+}
