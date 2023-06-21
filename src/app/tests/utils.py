@@ -1,5 +1,8 @@
 import json
 
+from app.lambda_func.use_cases.iam import IAMType
+from app.lambda_func.use_cases.remediate import get_managed_policies_for_principal
+
 from .constants import (
     TEST_INLINE_POLICY,
     TEST_INLINE_POLICY_NAME,
@@ -101,3 +104,56 @@ def get_current_managed_policy(iam_client, policy_arn):
     )
     policy_doc = response["PolicyVersion"]["Document"]
     return policy_doc
+
+
+def validate_principal_is_deleted(
+    principal_name: str, principal_type: IAMType, iam_client
+):
+    if principal_type == IAMType.ROLE:
+        roles_response = iam_client.list_roles()
+        roles = roles_response["Roles"]
+        assert principal_name not in {role["RoleName"] for role in roles}
+    else:
+        iam_user_response = iam_client.list_users()
+        users = iam_user_response["Users"]
+        assert principal_name not in {user["UserName"] for user in users}
+
+
+def validate_managed_policy_is_detached(
+    principal_name: str, principal_type: IAMType, policy_arn: str, iam_client
+):
+    managed_policy_arns = get_managed_policies_for_principal(
+        principal_name, principal_type, iam_client
+    )
+    assert policy_arn not in managed_policy_arns
+
+
+def validate_managed_policy_is_attached(
+    principal_name: str, principal_type: IAMType, policy_arn: str, iam_client
+):
+    managed_policy_arns = get_managed_policies_for_principal(
+        principal_name, principal_type, iam_client
+    )
+    assert policy_arn in managed_policy_arns
+
+
+def validate_inline_policy_is_attached(
+    principal_name: str, principal_type: IAMType, inline_policy_name: str, iam_client
+):
+    if principal_type == IAMType.ROLE:
+        response = iam_client.list_role_policies(RoleName=principal_name)
+    else:
+        response = iam_client.list_user_policies(UserName=principal_name)
+
+    assert inline_policy_name in response["PolicyNames"]
+
+
+def validate_inline_policy_is_not_attached(
+    principal_name: str, principal_type: IAMType, inline_policy_name: str, iam_client
+):
+    if principal_type == IAMType.ROLE:
+        response = iam_client.list_role_policies(RoleName=principal_name)
+    else:
+        response = iam_client.list_user_policies(UserName=principal_name)
+
+    assert inline_policy_name not in response["PolicyNames"]

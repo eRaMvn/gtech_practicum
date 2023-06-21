@@ -48,6 +48,11 @@ from .utils import (
     create_user_with_managed_policies,
     get_current_managed_policy,
     updated_managed_policy,
+    validate_inline_policy_is_attached,
+    validate_inline_policy_is_not_attached,
+    validate_managed_policy_is_attached,
+    validate_managed_policy_is_detached,
+    validate_principal_is_deleted,
 )
 
 
@@ -165,21 +170,16 @@ def test_remediate_create_principal_with_managed_policy(
     if principal_type == IAMType.ROLE:
         updated_event["detail"]["requestParameters"]["roleName"] = TEST_ROLE_NAME
         create_role_with_managed_policies(mock_iam_client)
+        principal_name = TEST_ROLE_NAME
     else:
         updated_event["detail"]["eventName"] = EventName.CREATE_USER.value
         updated_event["detail"]["requestParameters"]["userName"] = TEST_USER_NAME
         create_user_with_managed_policies(mock_iam_client)
+        principal_name = TEST_USER_NAME
 
     remediate(updated_event)
 
-    if principal_type == IAMType.ROLE:
-        roles_response = mock_iam_client.list_roles()
-        roles = roles_response["Roles"]
-        assert len(roles) == 0
-    else:
-        iam_user_response = mock_iam_client.list_users()
-        users = iam_user_response["Users"]
-        assert len(users) == 0
+    validate_principal_is_deleted(principal_name, principal_type, mock_iam_client)
 
 
 @pytest.mark.parametrize("principal_type", [IAMType.ROLE, IAMType.IAM_USER])
@@ -215,10 +215,9 @@ def test_remediate_update_principal_by_adding_attach_managed_policy(
 
     remediate(updated_event)
 
-    managed_policy_arns = get_managed_policies_for_principal(
-        principal_name, principal_type, mock_iam_client
+    validate_managed_policy_is_detached(
+        principal_name, principal_type, test_policy, mock_iam_client
     )
-    assert len(managed_policy_arns) == 0
 
 
 @pytest.mark.parametrize("principal_type", [IAMType.ROLE, IAMType.IAM_USER])
@@ -245,10 +244,10 @@ def test_remediate_update_principal_by_detaching_managed_policy(
     assert len(managed_policy_arns) == 2
 
     remediate(updated_event)
-    managed_policy_arns = get_managed_policies_for_principal(
-        principal_name, principal_type, mock_iam_client
+
+    validate_managed_policy_is_attached(
+        principal_name, principal_type, test_policy, mock_iam_client
     )
-    assert len(managed_policy_arns) == 3
 
 
 @pytest.mark.parametrize("principal_type", [IAMType.ROLE, IAMType.IAM_USER])
@@ -284,10 +283,10 @@ def test_remediate_update_principal_by_deleting_an_user_managed_policy(
         mock_s3_client,
     )
     remediate(updated_event)
-    managed_policy_arns = get_managed_policies_for_principal(
-        principal_name, principal_type, mock_iam_client
+
+    validate_managed_policy_is_attached(
+        principal_name, principal_type, test_policy, mock_iam_client
     )
-    assert len(managed_policy_arns) == 1
 
 
 @pytest.mark.parametrize("principal_type", [IAMType.ROLE, IAMType.IAM_USER])
@@ -338,22 +337,21 @@ def test_remediate_create_a_principal_with_inline_policy(
         updated_event["detail"]["requestParameters"]["roleName"] = TEST_ROLE_NAME
         create_role_with_inline_policies(mock_iam_client)
         response = mock_iam_client.list_role_policies(RoleName=TEST_ROLE_NAME)
+        principal_name = TEST_ROLE_NAME
     else:
         updated_event["detail"]["eventName"] = EventName.PUT_USER_POLICY.value
         updated_event["detail"]["requestParameters"]["userName"] = TEST_USER_NAME
         create_user_with_inline_policies(mock_iam_client)
         response = mock_iam_client.list_user_policies(UserName=TEST_USER_NAME)
+        principal_name = TEST_USER_NAME
 
     assert len(response["PolicyNames"]) == 1
 
     remediate(updated_event)
 
-    if principal_type == IAMType.ROLE:
-        response = mock_iam_client.list_role_policies(RoleName=TEST_ROLE_NAME)
-    else:
-        response = mock_iam_client.list_user_policies(UserName=TEST_USER_NAME)
-
-    assert len(response["PolicyNames"]) == 0
+    validate_inline_policy_is_not_attached(
+        principal_name, principal_type, TEST_INLINE_POLICY_NAME, mock_iam_client
+    )
 
 
 @pytest.mark.parametrize("principal_type", [IAMType.ROLE, IAMType.IAM_USER])
@@ -391,8 +389,6 @@ def test_remediate_deleting_inline_policy_in_role(
 
     remediate(updated_event)
 
-    if principal_type == IAMType.ROLE:
-        response = mock_iam_client.list_role_policies(RoleName=TEST_ROLE_NAME)
-    else:
-        response = mock_iam_client.list_user_policies(UserName=TEST_USER_NAME)
-    assert len(response["PolicyNames"]) == 1
+    validate_inline_policy_is_attached(
+        principal_name, principal_type, TEST_INLINE_POLICY_NAME, mock_iam_client
+    )

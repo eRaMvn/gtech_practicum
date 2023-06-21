@@ -25,8 +25,3 @@ def mock_iam_client(aws_credentials):
 def mock_s3_client(aws_credentials):
     with moto.mock_s3():
         yield boto3.client("s3", region_name="us-east-1")
-
-
-@pytest.fixture(scope="module")
-def iam_client():
-    return boto3.client("iam")
