@@ -22,7 +22,7 @@ from app.lambda_func.use_cases.remediate import (
 )
 from app.lambda_func.use_cases.s3 import upload_file_to_s3
 
-from .constants import (
+from ..constants import (
     TEST_INLINE_POLICY,
     TEST_INLINE_POLICY_NAME,
     TEST_MANAGED_POLICY,
@@ -30,7 +30,7 @@ from .constants import (
     TEST_ROLE_NAME,
     TEST_USER_NAME,
 )
-from .events import (
+from ..events import (
     ATTACH_ROLE_POLICY_EVENT,
     CREATE_POLICY_VERSION_EVENT,
     CREATE_ROLE_EVENT,
@@ -39,7 +39,7 @@ from .events import (
     EVENT_FROM_ASSUME_ROLE,
     PUT_ROLE_POLICY_EVENT,
 )
-from .utils import (
+from ..utils import (
     create_iam_role,
     create_iam_user,
     create_role_with_inline_policies,

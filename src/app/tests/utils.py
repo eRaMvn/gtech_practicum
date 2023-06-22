@@ -12,10 +12,10 @@ from .constants import (
 )
 
 
-def create_iam_role(iam_client):
+def create_iam_role(iam_client, role_name=TEST_ROLE_NAME):
     # Create the IAM role
     response = iam_client.create_role(
-        RoleName=TEST_ROLE_NAME,
+        RoleName=role_name,
         AssumeRolePolicyDocument="""{
             "Version": "2012-10-17",
             "Statement": [
@@ -33,8 +33,8 @@ def create_iam_role(iam_client):
     return response["Role"]["Arn"]
 
 
-def create_role_with_managed_policies(iam_client):
-    create_iam_role(iam_client)
+def create_role_with_managed_policies(iam_client, role_name=TEST_ROLE_NAME):
+    create_iam_role(iam_client, role_name)
 
     # Attach managed policies to the role
     for policy_arn in TEST_POLICIES:

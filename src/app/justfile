@@ -1,14 +1,14 @@
 check:
   pre-commit run --all-files
 
-filter PATTERN CASE:
-  pytest tests/{{PATTERN}} -k {{CASE}}
+unit-filter PATTERN CASE:
+  pytest tests/unit/{{PATTERN}} -k {{CASE}}
 
-test PATTERN:
-  pytest tests/{{PATTERN}}
+unit-test PATTERN:
+  pytest tests/unit/{{PATTERN}}
 
-tests:
-  pytest tests
+unit-tests:
+  pytest tests/unit
 
 update_requirements:
   pip-compile requirements.in

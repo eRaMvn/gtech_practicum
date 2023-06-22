@@ -4,14 +4,14 @@ from app.lambda_func.use_cases.constants import BUCKET_NAME
 from app.lambda_func.use_cases.iam import IAMPolicy, create_managed_policy
 from app.lambda_func.use_cases.record import record_all_policies_for_users_and_roles
 
-from .constants import (
+from ..constants import (
     TEST_INLINE_POLICY,
     TEST_INLINE_POLICY_NAME,
     TEST_MANAGED_POLICY,
     TEST_MANAGED_POLICY_NAME,
     TEST_ROLE_NAME,
 )
-from .utils import create_role_with_inline_policies
+from ..utils import create_role_with_inline_policies
 
 
 def test_policy_snapshot_handler(mock_iam_client, mock_s3_client):

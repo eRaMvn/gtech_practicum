@@ -27,3 +27,9 @@ TEST_INLINE_POLICY = {
         }
     ],
 }
+DESIGNATED_ROLE_NAME = "thor"
+MALICIOUS_ROLE_NAME = "loki"
+INTEGRATION_MANAGED_POLICY_ARN = "arn:aws:iam::aws:policy/CloudWatchReadOnlyAccess"
+CASE_1_ROLE_NAME = "case_1_role"
+CASE_2_ROLE_NAME = "case_2_role"
+CASE_3_ROLE_NAME = "case_3_role"
