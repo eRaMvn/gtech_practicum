@@ -38,7 +38,7 @@ def create_role_with_managed_policies(iam_client, role_name=TEST_ROLE_NAME):
 
     # Attach managed policies to the role
     for policy_arn in TEST_POLICIES:
-        iam_client.attach_role_policy(RoleName=TEST_ROLE_NAME, PolicyArn=policy_arn)
+        iam_client.attach_role_policy(RoleName=role_name, PolicyArn=policy_arn)
 
 
 def create_role_with_inline_policies(iam_client):

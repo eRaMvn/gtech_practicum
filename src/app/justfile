@@ -10,6 +10,9 @@ unit-test PATTERN:
 unit-tests:
   pytest tests/unit
 
+integration-tests:
+  pytest tests/integration
+
 update_requirements:
   pip-compile requirements.in
   cp requirements.txt lambda_func/requirements.txt

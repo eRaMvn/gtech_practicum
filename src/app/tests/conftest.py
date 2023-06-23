@@ -5,6 +5,12 @@ import boto3
 import moto
 import pytest
 
+from app.lambda_func.use_cases.iam import (
+    IAMType,
+    detach_managed_policies_from_principal,
+    get_managed_policies_for_principal,
+)
+
 from .constants import (
     CASE_1_ROLE_NAME,
     CASE_2_ROLE_NAME,
@@ -66,6 +72,23 @@ def create_custom_clients(role_arn: str, session_name: str):
         )
 
 
+def clean_up_test_roles(iam_client):
+    roles_to_delete = [CASE_1_ROLE_NAME, CASE_2_ROLE_NAME, CASE_3_ROLE_NAME]
+    for role_name in roles_to_delete:
+        try:
+            managed_policy_arns = get_managed_policies_for_principal(
+                role_name, IAMType.ROLE, iam_client
+            )
+            if managed_policy_arns:
+                detach_managed_policies_from_principal(
+                    managed_policy_arns, role_name, IAMType.ROLE, iam_client
+                )
+
+            iam_client.delete_role(RoleName=role_name)
+        except BaseException:
+            pass
+
+
 def case_1_create_role_with_unapproved_creds(unapproved_iam_client):
     create_role_with_managed_policies(unapproved_iam_client, CASE_1_ROLE_NAME)
 
@@ -108,6 +131,8 @@ def setup_integration_testing():
     loki_iam_client, loki_s3_client = create_custom_clients(
         iam_base_arn + MALICIOUS_ROLE_NAME, "loki"
     )
+    clean_up_test_roles(thor_iam_client)
+    time.sleep(10)
     create_use_cases(thor_iam_client, loki_iam_client)
     time.sleep(90)
     yield thor_iam_client, loki_iam_client
