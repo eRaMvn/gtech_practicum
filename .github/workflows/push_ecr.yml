@@ -7,6 +7,8 @@ on:
       - main
     paths:
       - '**.py'
+    paths-ignore:
+      - src/app/lambda_func/tests/**.py
 
 permissions:
   contents: read
