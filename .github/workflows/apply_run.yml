@@ -5,8 +5,8 @@ on:
   push:
     branches:
       - main
-    paths:
-      - src/**.tf
+    paths-ignore:
+      - src/app/lambda_func
 
 ## RECOMMENDED: Limit apply runs job / workflow to a single concurrency group at a time.
 ## link: https://docs.github.com/en/actions/using-jobs/using-concurrency
