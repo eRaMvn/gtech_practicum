@@ -1,7 +1,7 @@
 module "iam_assumable_roles" {
   source = "terraform-aws-modules/iam/aws//modules/iam-assumable-role"
 
-  role_name   = "iam_keeper_anton_test_role"
+  role_name   = "iam_keeper_anton_should_be_deleted_role1"
   create_role = true
   trusted_role_arns = [
     "arn:aws:iam::${var.account_id}:root",
@@ -26,7 +26,7 @@ module "role" {
   source = "cloudposse/iam-role/aws"
 
   enabled = true
-  name    = "iam_keeper_cloudposse_test_role"
+  name    = "iam_keeper_posse_should_be_deleted_role2"
 
   policy_description = "Allow S3 FullAccess"
   role_description   = "IAM role with permissions to perform actions on S3 resources"

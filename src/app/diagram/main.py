@@ -39,8 +39,6 @@ with Diagram(
         handle_policy_event_lambda = Lambda("event_handler")
         snapshot_cron_lambda = Lambda("policy_snapshot")
 
-        secret_manager = SecretsManager("secret_manager")
-
         resource_bucket = S3("policy_store")
         iam_permissions = IAMPermissions("iam_permissions")
 
@@ -65,6 +63,3 @@ with Diagram(
 
     # Lambda functions
     handle_policy_event_lambda >> iam_permissions  # type: ignore
-
-    # Secrets manager
-    secret_manager >> handle_policy_event_lambda  # type: ignore
