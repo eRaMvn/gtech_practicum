@@ -54,8 +54,6 @@ ecdsa==0.18.0
     #   moto
     #   python-jose
     #   sshpubkeys
-exceptiongroup==1.1.1
-    # via pytest
 filelock==3.12.0
     # via virtualenv
 graphql-core==3.2.3
@@ -192,11 +190,6 @@ sshpubkeys==3.3.1
     # via moto
 sympy==1.12
     # via cfn-lint
-tomli==2.0.1
-    # via
-    #   build
-    #   pyproject-hooks
-    #   pytest
 typed-ast==1.5.4
     # via diagrams
 types-pyyaml==6.0.12.10
@@ -206,7 +199,7 @@ typing-extensions==4.6.3
     #   aws-sam-translator
     #   jsonschema-spec
     #   pydantic
-urllib3==1.26.16
+urllib3==1.26.17
     # via
     #   botocore
     #   docker
